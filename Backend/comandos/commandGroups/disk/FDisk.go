@@ -2,10 +2,8 @@ package disk
 
 import (
 	"Proyecto/Estructuras/size"
-	"Proyecto/Estructuras/structures"
 	"Proyecto/comandos/utils"
 	"encoding/binary"
-	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -17,6 +15,7 @@ import (
 // E = Extendido
 // L = Logico
 func fdiskExecute(comando string, parametros map[string]string) (string, bool) {
+
 	tamanio, er, strError := utils.TieneSize(comando, parametros["size"])
 	if er {
 		return strError, er
@@ -37,66 +36,64 @@ func fdiskExecute(comando string, parametros map[string]string) (string, bool) {
 		return strError, er
 	}
 
-	tipoArreglo, er, strError := utils.TieneFit(comando, parametros["type"])
+	tipoFit, er, strError := utils.TieneFit("fdisk", parametros["fit"])
 	if er {
 		return strError, er
 	}
 
-	nombreParticion, er, strError := utils.TieneName(parametros["type"])
+	nombreParticion, er, strError := utils.TieneName(parametros["name"])
 	if er {
 		return strError, er
 	}
 
-	return fdiskCreate(tamanio, unidad, diskName, tipo, tipoArreglo, nombreParticion)
-	// return "", true
+	return fdiskCreate(tamanio, unidad, diskName, tipo, tipoFit, nombreParticion)
 }
 
 func fdiskCreate(tamanio int32, unidad byte, diskName string, tipo byte, tipoFit byte, nombreParticion string) (string, bool) {
-	var nombreSinExtension = ""
-	var extensionArchivo = ""
+
+	nombreSinExtension := ""
+	extensionArchivo := ""
+
 	if strings.Contains(diskName, ".") {
-		nombreSinExtension = strings.Split(diskName, ".")[0]
-		extensionArchivo = strings.Split(diskName, ".")[1]
+		partes := strings.Split(diskName, ".")
+		nombreSinExtension = partes[0]
+		extensionArchivo = partes[1]
 	}
 
 	if extensionArchivo != "mia" {
-		return "Extension del archivo no valida", true
+		return "Extensión del archivo no válida", true
 	}
 
-	nombreSinExtension = nombreSinExtension + ".mia"
-
-	path := utils.DirectorioDisco + nombreSinExtension
-	// tamanioDisco := utils.ObtenerTamanioDisco(tamanio, unidad)
+	path := utils.DirectorioDisco + nombreSinExtension + ".mia"
 
 	switch tipo {
 	case 'P':
-		fmt.Println("ParticionPrimaria")
-		particionPrimaria(path, nombreParticion, tipo, tamanio, tipoFit, unidad)
-		return "", false
+		return particionPrimaria(path, nombreParticion, tipo, tamanio, tipoFit, unidad)
 
 	case 'E':
-		fmt.Println("ParticionExtendida")
-		return "", false
+		return "Particiones extendidas aún no implementadas", true
 
 	case 'L':
-		fmt.Println("ParticionLogica")
-		return "", false
+		return "Particiones lógicas aún no implementadas", true
 
 	default:
-		return "Tipo para particion desconocido", true
+		return "Tipo de partición desconocido", true
 	}
 }
 
-func particionPrimaria(ubicacionArchivo string, nombreParticion string, tipo byte, tamanioDisco int32, tipoArreglo byte, unidad byte) (string, bool) {
+func particionPrimaria(ubicacionArchivo string, nombreParticion string, tipo byte, tamanioDisco int32, tipoFit byte, unidad byte) (string, bool) {
+
 	if !utils.ExisteArchivo("FDISK", ubicacionArchivo) {
 		color.Yellow("[FDISK]: Disco <<" + ubicacionArchivo + ">> no encontrado")
-		return "Disco no encontrado: " + ubicacionArchivo, true
+		return "Disco no encontrado", true
 	}
 
-	particion := utils.NuevaPartitionVacia()
+	if len(nombreParticion) > 16 {
+		return "El nombre de la partición no puede exceder 16 caracteres", true
+	}
+
 	mbr, er, strError := utils.ObtenerEstructuraMBR(ubicacionArchivo)
 	if er {
-		color.Red(strError)
 		return strError, er
 	}
 
@@ -108,74 +105,54 @@ func particionPrimaria(ubicacionArchivo string, nombreParticion string, tipo byt
 		}
 	}
 
-	// Continuación de la clase del 17
-	// Verificamos que el nombre exista para evitar que se repita
-	nombreExistente, strMensajeError := utils.ExisteNombreParticion(ubicacionArchivo, nombreParticion)
+	if pos == -1 {
+		return "No hay espacio para más particiones primarias", true
+	}
+
+	// Validar nombre duplicado
+	nombreExistente, msg := utils.ExisteNombreParticion(ubicacionArchivo, nombreParticion)
 	if nombreExistente {
-		return strMensajeError, nombreExistente
+		return msg, true
 	}
 
-	// ahora que pasamoss del nombre que es aceptado y no existe como tal
-	// procedemos a ver si hay espacio como tal
-	blnEspacioDisponible := utils.ExisteEspacioDisponible(tamanioDisco, ubicacionArchivo, unidad, int32(pos))
-	if !blnEspacioDisponible {
-		return "Espacio insuficiente", true
+	// Validar espacio
+	if !utils.ExisteEspacioDisponible(tamanioDisco, ubicacionArchivo, unidad, int32(pos)) {
+		return "Espacio insuficiente en el disco", true
 	}
 
-	// if utils.ExisteNombreParticion()
-	particion.Part_fit = tipoArreglo
+	particion := utils.NuevaPartitionVacia()
 	particion.Part_type = tipo
-	particion.Part_name = [16]byte(utils.ConvertirStringAByte(string(nombreParticion), 16))
-	particion.Part_status = -1
+	particion.Part_fit = tipoFit
+	particion.Part_status = 0
+	particion.Part_name = [16]byte(utils.ConvertirStringAByte(nombreParticion, 16))
 	particion.Part_correlative = utils.ObtenerDiskSignature()
 	particion.Part_s = utils.ObtenerTamanioDisco(tamanioDisco, unidad)
 
-	// Si la posición es la inicial (primer partición para hacer)
-	// simplemente se toma desde el tamaño del mbr
-	// de lo contrario se verá dondonde está la partición anterior más el tamaño que tiene
 	if pos == 0 {
 		particion.Part_start = size.SizeMBR()
 	} else {
-		particion.Part_start = mbr.Mbr_partitions[pos-1].Part_start + mbr.Mbr_partitions[pos-1].Part_s
+		particion.Part_start = mbr.Mbr_partitions[pos-1].Part_start +
+			mbr.Mbr_partitions[pos-1].Part_s
 	}
 
 	mbr.Mbr_partitions[pos] = particion
+
 	file, err := os.OpenFile(ubicacionArchivo, os.O_RDWR, 0666)
 	if err != nil {
-		return "[disk.line:144]: Error al abrir archivo", true
+		return "Error al abrir el disco", true
 	}
 	defer file.Close()
 
-	if _, err := file.Seek(0, 0); err != nil {
-		return "[disk.line:149]: Error al mover el puntero", true
-	}
-
+	file.Seek(0, 0)
 	if err := binary.Write(file, binary.LittleEndian, &mbr); err != nil {
-		return "[disk.line:153]: Error al escribir el MBR", true
+		return "Error al escribir el MBR", true
 	}
-	file.Close()
 
-	comprobacion := structures.MBR{}
-	file, err = os.OpenFile(ubicacionArchivo, os.O_RDWR, 0666)
-	if err != nil {
-		// color.Red("[FDISK]: Error al abrir archivo")
-		return "[disk.line:161]: Error al escribir el MBR", true
-	}
-	defer file.Close()
-	if _, err := file.Seek(0, 0); err != nil {
-		// color.Red("[FDISK]: Error en mover puntero")
-		return "[disk.line:166]: Error al mover el puntero", true
-	}
-	if err := binary.Read(file, binary.LittleEndian, &comprobacion); err != nil {
-		return "[disk.line:169]: Error al escribir el MBR", true
-	}
-	file.Close()
 	color.Green("-----------------------------------------------------------")
-	color.Blue("Se creo la particion #" + strconv.Itoa(int(comprobacion.Mbr_partitions[pos].Part_correlative)))
-	color.Blue("Particion: " + utils.ConvertirByteAString(comprobacion.Mbr_partitions[pos].Part_name[:]))
-	color.Blue("Tipo Primaria")
-	color.Blue("Inicio: " + strconv.Itoa(int(comprobacion.Mbr_partitions[pos].Part_start)))
-	color.Blue("Tamaño: " + strconv.Itoa(int(comprobacion.Mbr_partitions[pos].Part_s)))
+	color.Blue("Partición primaria creada exitosamente")
+	color.Blue("Nombre: " + nombreParticion)
+	color.Blue("Inicio: " + strconv.Itoa(int(particion.Part_start)))
+	color.Blue("Tamaño: " + strconv.Itoa(int(particion.Part_s)))
 	color.Green("-----------------------------------------------------------")
 
 	return "", false

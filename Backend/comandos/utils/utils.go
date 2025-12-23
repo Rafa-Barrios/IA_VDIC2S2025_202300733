@@ -28,7 +28,7 @@ func esEntero(valor string) (int32, bool, string) {
 	}
 
 	if i <= 0 {
-		return 0, true, "Valor entero menor o igual a 0"
+		return 0, true, "El tamaño debe ser mayor a 0"
 	}
 
 	return int32(i), false, ""
@@ -37,7 +37,7 @@ func esEntero(valor string) (int32, bool, string) {
 func TieneSize(comando string, size string) (int32, bool, string) {
 	salida, er, msg := esEntero(size)
 	if er {
-		return salida, true, fmt.Sprintf("%s - Comando: %s", msg, comando)
+		return salida, true, fmt.Sprintf("[%s] %s", strings.ToUpper(comando), msg)
 	}
 	return salida, false, ""
 }
@@ -72,7 +72,6 @@ func TieneUnit(command string, unit string) (byte, bool, string) {
 
 	rule, ok := unitRules[command]
 	if !ok {
-		// El comando no maneja unit, se ignora sin error
 		return 0, false, ""
 	}
 
@@ -83,7 +82,7 @@ func TieneUnit(command string, unit string) (byte, bool, string) {
 	u := strings.ToUpper(unit)
 	if !rule.Allowed[u] {
 		return rule.Default, true,
-			fmt.Sprintf("[%s] unidad inválida: %s", command, u)
+			fmt.Sprintf("[%s] unidad inválida: %s", strings.ToUpper(command), u)
 	}
 
 	return u[0], false, ""
@@ -95,21 +94,25 @@ func TieneUnit(command string, unit string) (byte, bool, string) {
 
 func TieneFit(command string, fit string) (byte, bool, string) {
 
+	command = strings.ToLower(command)
 	fit = strings.ToUpper(strings.TrimSpace(fit))
 
+	// Valor por defecto
 	if fit == "" {
-		return 'F', false, "" // FF por defecto
+		return 'W', false, ""
 	}
 
 	switch fit {
+	case "BF":
+		return 'B', false, ""
 	case "FF":
 		return 'F', false, ""
 	case "WF":
 		return 'W', false, ""
-	case "BF":
-		return 'B', false, ""
 	default:
-		return 0, true, fmt.Sprintf("Fit inválido: %s", fit)
+		color.Red("[%s] Fit inválido: %s", strings.ToUpper(command), fit)
+		return 0, true,
+			fmt.Sprintf("[%s] Fit inválido, solo se permite BF, FF o WF", strings.ToUpper(command))
 	}
 }
 
@@ -143,23 +146,22 @@ func NuevaPartitionVacia() structures.Partition {
 	p := structures.Partition{}
 	p.Part_status = -1
 	p.Part_type = 'P'
-	p.Part_fit = 'F'
+	p.Part_fit = 'W'
 	p.Part_start = -1
 	p.Part_s = -1
 	p.Part_correlative = -1
 	return p
 }
 
+/*
+SOLO SE PERMITEN PARTICIONES PRIMARIAS
+*/
 func TieneType(tipo string) (byte, bool, string) {
-	switch strings.ToUpper(tipo) {
-	case "P":
+	switch strings.ToUpper(strings.TrimSpace(tipo)) {
+	case "", "P":
 		return 'P', false, ""
-	case "E":
-		return 'E', false, ""
-	case "L":
-		return 'L', false, ""
 	default:
-		return 0, true, "Tipo no reconocido"
+		return 0, true, "Solo se permiten particiones primarias (P)"
 	}
 }
 
@@ -194,7 +196,7 @@ func ExisteArchivo(comando string, path string) bool {
 }
 
 /* =========================
-   MBR / EBR
+   MBR
 ========================= */
 
 func ObtenerEstructuraMBR(path string) (structures.MBR, bool, string) {
@@ -218,9 +220,9 @@ func ObtenerEstructuraMBR(path string) (structures.MBR, bool, string) {
 ========================= */
 
 func ExisteEspacioDisponible(tamanio int32, pathDisco string, unidad byte, posicion int32) bool {
-	mbr, err, strMensajeErr := ObtenerEstructuraMBR(pathDisco)
+	mbr, err, msg := ObtenerEstructuraMBR(pathDisco)
 	if err {
-		fmt.Println(strMensajeErr)
+		fmt.Println(msg)
 		return false
 	}
 
@@ -242,4 +244,54 @@ func ExisteEspacioDisponible(tamanio int32, pathDisco string, unidad byte, posic
 	}
 
 	return espacio >= tamanioDisco
+}
+
+/* =====================================================
+   FUNCIONES AGREGADAS PARA FDISK (SIN ROMPER NADA)
+===================================================== */
+
+func TieneDiskName(diskName string) (string, bool, string) {
+	diskName = strings.TrimSpace(diskName)
+
+	if diskName == "" {
+		return "", true, "diskName no puede estar vacío"
+	}
+
+	if !strings.HasSuffix(strings.ToLower(diskName), ".mia") {
+		return "", true, "El disco debe tener extensión .mia"
+	}
+
+	return diskName, false, ""
+}
+
+func TieneName(name string) (string, bool, string) {
+	name = strings.TrimSpace(name)
+
+	if name == "" {
+		return "", true, "El nombre de la partición no puede estar vacío"
+	}
+
+	if len(name) > 16 {
+		return "", true, "El nombre de la partición no puede exceder 16 caracteres"
+	}
+
+	return name, false, ""
+}
+
+func ExisteNombreParticion(path string, nombre string) (bool, string) {
+	mbr, err, msg := ObtenerEstructuraMBR(path)
+	if err {
+		return true, msg
+	}
+
+	for _, part := range mbr.Mbr_partitions {
+		if part.Part_start != -1 {
+			nombreActual := ConvertirByteAString(part.Part_name[:])
+			if strings.EqualFold(nombreActual, nombre) {
+				return true, "Ya existe una partición con ese nombre"
+			}
+		}
+	}
+
+	return false, ""
 }

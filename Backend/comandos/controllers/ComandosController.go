@@ -9,9 +9,11 @@ import (
 )
 
 func HandleCommand(w http.ResponseWriter, r *http.Request) {
-	// command
+
+	// =========================
+	// CORS - Preflight
+	// =========================
 	if r.Method == http.MethodOptions {
-		// Establecer encabezados CORS para las solicitudes OPTIONS
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "POST")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
@@ -19,18 +21,25 @@ func HandleCommand(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Solo permitir solicitudes POST
+	// =========================
+	// Validar método
+	// =========================
 	if r.Method != http.MethodPost {
 		http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
 		return
 	}
 
-	// Configurar encabezados CORS para las solicitudes POST
+	// =========================
+	// Headers
+	// =========================
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "POST")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	w.Header().Set("Content-Type", "application/json")
 
-	// Decodificar el cuerpo JSON de la solicitud
+	// =========================
+	// Body esperado
+	// =========================
 	var requestBody struct {
 		Comandos *string `json:"Comandos"`
 	}
@@ -38,9 +47,7 @@ func HandleCommand(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
 
-	err := decoder.Decode(&requestBody)
-	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
+	if err := decoder.Decode(&requestBody); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(
 			general.ResultadoSalida("JSON inválido o campos no permitidos", true, nil),
@@ -49,43 +56,49 @@ func HandleCommand(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if requestBody.Comandos == nil || strings.TrimSpace(*requestBody.Comandos) == "" {
-		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(
-			general.ResultadoSalida("El campo 'Comandos' es obligatorio y no puede ser nulo", true, nil),
+			general.ResultadoSalida("El campo 'Comandos' es obligatorio", true, nil),
 		)
 		return
 	}
 
-	var ejecutar []string
-	ejecutar = append(ejecutar, *requestBody.Comandos)
-	comando := strings.Split(ejecutar[0], "\n")
-	tempComandos := general.ExecuteCommandList(comando)
-	salida, ok := tempComandos.Respuesta.(general.SalidaComandoEjecutado)
-	if !ok {
-		// http.Error(w, "Error al obtener comandos", http.StatusInternalServerError)
-		w.Header().Set("Content-Type", "application/json")
+	// =========================
+	// Ejecución de comandos
+	// =========================
+	comandos := strings.Split(*requestBody.Comandos, "\n")
+	resultado := general.ExecuteCommandList(comandos)
+
+	// =========================
+	// SALIDA CORRECTA (NO Data, NO Respuesta)
+	// =========================
+	salida := resultado.Salida
+
+	// Ejecutar comandos reales (FDISK, MKDISK, etc.)
+	errores, contadorErrores := general.GlobalCom(salida.LstComandos)
+	fmt.Println(errores, contadorErrores)
+
+	// =========================
+	// Respuesta HTTP
+	// =========================
+	if contadorErrores > 0 {
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(
-			general.ResultadoSalida("Error al obtener comandos", true, nil),
-		)
-		return
-		// return
-	}
-
-	errores, contadorErrorres := general.GlobalCom(salida.LstComandos)
-	fmt.Println(errores, contadorErrorres)
-
-	// comandos.GlobalCom(ejecutar)
-	// obtencionpf.ObtenerMBR_Mounted()
-	w.Header().Set("Content-Type", "application/json")
-	err = json.NewEncoder(w).Encode(general.ResultadoSalida("", false, salida.LstComandos))
-	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(
-			general.ResultadoSalida("Error al leer el cuerpo de la solicitud", true, nil),
+			general.ResultadoSalida(
+				"Ocurrieron errores al ejecutar los comandos",
+				true,
+				errores,
+			),
 		)
 		return
 	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(
+		general.ResultadoSalida(
+			"Comandos ejecutados correctamente",
+			false,
+			salida.LstComandos,
+		),
+	)
 }

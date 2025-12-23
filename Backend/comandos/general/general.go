@@ -30,16 +30,15 @@ func ObtenerParametros(x string) []string {
 	matches := regex.FindAllStringSubmatch(x, -1)
 
 	for _, m := range matches {
-		atributo := strings.ToLower(m[2])
+		atributo := strings.ToLower(strings.TrimSpace(m[2]))
 
 		if m[3] != "" {
 			comandos = append(comandos, fmt.Sprintf("%s=%s", atributo, m[3]))
 		} else if m[4] != "" {
 			comandos = append(comandos, fmt.Sprintf("%s=%s", atributo, m[4]))
-		} else {
-			// Parámetro bandera (ej: -p)
-			comandos = append(comandos, atributo)
 		}
+		// ❌ Se eliminan parámetros bandera (-p)
+		// No se usan en este proyecto y pueden causar errores
 	}
 
 	return comandos
