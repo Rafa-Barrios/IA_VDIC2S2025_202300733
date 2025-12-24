@@ -11,17 +11,32 @@ import (
 	"github.com/fatih/color"
 )
 
+// obtiene la letra del disco a partir del nombre (VDIC-A.mia -> A)
+func obtenerLetraDisco(diskName string) byte {
+	base := strings.ToUpper(diskName)
+
+	for i := 0; i < len(base)-1; i++ {
+		if base[i] == '-' && base[i+1] >= 'A' && base[i+1] <= 'Z' {
+			return base[i+1]
+		}
+	}
+
+	// fallback seguro (no debería ocurrir)
+	return 'A'
+}
+
 // mountExecute monta una partición primaria en el disco
 func mountExecute(_ string, props map[string]string) (string, bool) {
 
 	diskName := strings.TrimSpace(props["diskname"])
 	partName := strings.TrimSpace(props["name"])
 
-	// 🔹 Construir ruta REAL del disco
+	// Validar extensión
 	if !strings.HasSuffix(strings.ToLower(diskName), ".mia") {
 		return "El disco debe tener extensión .mia", true
 	}
 
+	// Ruta real del disco
 	path := utils.DirectorioDisco + diskName
 
 	// 1. Abrir disco
@@ -65,7 +80,7 @@ func mountExecute(_ string, props map[string]string) (string, bool) {
 		return "La partición ya se encuentra montada", true
 	}
 
-	// 5. Calcular correlativo REAL (por disco)
+	// 5. Calcular correlativo por disco (inicia en 1)
 	var correlativo int32 = 1
 	for i := 0; i < 4; i++ {
 		if mbr.Mbr_partitions[i].Part_status == 1 {
@@ -73,8 +88,8 @@ func mountExecute(_ string, props map[string]string) (string, bool) {
 		}
 	}
 
-	// 6. Generar letra fija por disco (A, B, C...)
-	letra := byte('A' + (mbr.Mbr_disk_signature % 26))
+	// 6. Letra FIJA del disco
+	letra := obtenerLetraDisco(diskName)
 
 	// 7. Generar ID -> 21 + número + letra
 	id := fmt.Sprintf("21%d%c", correlativo, letra)
@@ -90,7 +105,7 @@ func mountExecute(_ string, props map[string]string) (string, bool) {
 		return "Error al escribir el MBR actualizado", true
 	}
 
-	// 🔹 MENSAJES EN CONSOLA
+	// Mensajes en consola
 	color.Green("-----------------------------------------------------------")
 	color.Blue("Partición montada correctamente")
 	color.Blue("Disco: %s", diskName)
