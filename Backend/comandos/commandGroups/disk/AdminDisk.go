@@ -45,7 +45,7 @@ var commands = map[string]CommandDef{
 		},
 		Required: []string{"diskname", "name"},
 		Defaults: map[string]string{},
-		Run:      nil,
+		Run:      mountExecute,
 	},
 	"mounted": {
 		Allowed:  map[string]bool{},

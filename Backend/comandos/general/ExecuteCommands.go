@@ -65,7 +65,14 @@ func GlobalCom(lista []string) ([]string, int) {
 
 		case "disk":
 			color.Cyan("Administración de discos: %s", command)
-			disk.DiskExecuteCommanWithProps(command, parametros)
+
+			// 🔴 CAMBIO CLAVE: capturar resultado del comando
+			msg, err := disk.DiskExecuteCommanWithProps(command, parametros)
+			if err {
+				color.Red("[ERROR] %s", msg)
+				errores = append(errores, msg)
+				contErrores++
+			}
 
 		case "reports":
 			color.Magenta("Administración de reportes: %s", command)
