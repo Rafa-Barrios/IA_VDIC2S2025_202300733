@@ -55,11 +55,23 @@ var commands = map[string]CommandDef{
 	},
 	"mkfs": {
 		Allowed: map[string]bool{
-			"id": true, "type": true,
+			"id":   true,
+			"type": true,
 		},
 		Required: []string{"id"},
-		Defaults: map[string]string{"type": "FULL"},
-		Run:      nil,
+		Defaults: map[string]string{
+			"type": "FULL",
+		},
+		Run: func(_ string, props map[string]string) (string, bool) {
+
+			mkfs := MKFS{
+				Id:   props["id"],
+				Type: strings.ToUpper(props["type"]),
+			}
+
+			mkfs.Execute()
+			return "MKFS ejecutado correctamente", false
+		},
 	},
 }
 
