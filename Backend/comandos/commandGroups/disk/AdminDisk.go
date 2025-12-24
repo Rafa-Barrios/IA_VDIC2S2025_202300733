@@ -51,7 +51,7 @@ var commands = map[string]CommandDef{
 		Allowed:  map[string]bool{},
 		Required: []string{},
 		Defaults: map[string]string{},
-		Run:      nil,
+		Run:      mountedExecute,
 	},
 	"mkfs": {
 		Allowed: map[string]bool{
