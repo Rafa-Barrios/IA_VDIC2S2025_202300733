@@ -23,10 +23,12 @@ type Session struct {
 
 var currentSession *Session = nil
 
-/* =========================
-   LOGIN
-========================= */
+/*
+	=========================
+	  LOGIN
 
+=========================
+*/
 func loginExecute(_ string, props map[string]string) (string, bool) {
 
 	// 1️⃣ No permitir login si ya hay sesión activa
@@ -38,32 +40,37 @@ func loginExecute(_ string, props map[string]string) (string, bool) {
 	pass := strings.TrimSpace(props["pass"])
 	id := strings.TrimSpace(props["id"])
 
-	// Validar parámetros obligatorios
+	// 2️⃣ Validar parámetros obligatorios
 	if user == "" || pass == "" || id == "" {
 		return "❌ Error: faltan parámetros obligatorios (user, pass, id)", true
 	}
 
-	// 2️⃣ Validar que la partición esté montada
+	// 3️⃣ Validar que la partición esté montada
 	part := GetMountedPartition(id)
 	if part == nil {
-		return "❌ Error: la partición no está montada", true
+		return "❌ Error: la partición no existe o no está montada", true
 	}
 
-	// 3️⃣ Abrir disco
-	file, err := os.OpenFile(part.Path, os.O_RDONLY, 0666)
+	// 4️⃣ Validar que el disco exista físicamente
+	if _, err := os.Stat(part.Path); err != nil {
+		return "❌ Error: el disco asociado a la partición no existe", true
+	}
+
+	// 5️⃣ Abrir disco
+	file, err := os.Open(part.Path)
 	if err != nil {
 		return "❌ Error al abrir el disco", true
 	}
 	defer file.Close()
 
-	// 4️⃣ Leer SuperBloque
+	// 6️⃣ Leer SuperBloque
 	var sb structures.SuperBlock
 	file.Seek(int64(part.Start), 0)
 	if err := binary.Read(file, binary.LittleEndian, &sb); err != nil {
 		return "❌ Error al leer el SuperBloque", true
 	}
 
-	// 5️⃣ Leer contenido de users.txt (primer bloque de datos)
+	// 7️⃣ Leer users.txt
 	usersBlockPos := sb.S_block_start
 	buffer := make([]byte, sb.S_block_s)
 
@@ -90,7 +97,7 @@ func loginExecute(_ string, props map[string]string) (string, bool) {
 				return "❌ Error: contraseña incorrecta", true
 			}
 
-			// LOGIN EXITOSO
+			// 8️⃣ LOGIN EXITOSO
 			currentSession = &Session{
 				User:  fields[3],
 				Group: fields[2],
