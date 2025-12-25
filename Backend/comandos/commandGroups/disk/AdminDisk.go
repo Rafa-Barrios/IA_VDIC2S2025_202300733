@@ -33,7 +33,8 @@ var commands = map[string]CommandDef{
 	},
 	"fdisk": {
 		Allowed: map[string]bool{
-			"size": true, "unit": true, "diskname": true, "type": true, "fit": true, "name": true,
+			"size": true, "unit": true, "diskname": true,
+			"type": true, "fit": true, "name": true,
 		},
 		Required: []string{"size", "diskname", "name"},
 		Defaults: map[string]string{"unit": "K", "type": "P", "fit": "FF"},
@@ -55,20 +56,15 @@ var commands = map[string]CommandDef{
 	},
 	"mkfs": {
 		Allowed: map[string]bool{
-			"id":   true,
-			"type": true,
+			"id": true, "type": true,
 		},
 		Required: []string{"id"},
-		Defaults: map[string]string{
-			"type": "FULL",
-		},
+		Defaults: map[string]string{"type": "FULL"},
 		Run: func(_ string, props map[string]string) (string, bool) {
-
 			mkfs := MKFS{
 				Id:   props["id"],
 				Type: strings.ToUpper(props["type"]),
 			}
-
 			mkfs.Execute()
 			return "MKFS ejecutado correctamente", false
 		},
@@ -89,7 +85,12 @@ var commands = map[string]CommandDef{
 	},
 }
 
+/* =========================
+   EJECUCIÓN DE COMANDOS
+========================= */
+
 func diskCommandProps(comando string, instrucciones []string) (string, bool) {
+
 	cmd := strings.ToLower(comando)
 	def, ok := commands[cmd]
 
@@ -97,7 +98,7 @@ func diskCommandProps(comando string, instrucciones []string) (string, bool) {
 		return fmt.Sprintf("Comando no reconocido: %s", comando), true
 	}
 
-	allowedLower := make(map[string]bool, len(def.Allowed))
+	allowedLower := make(map[string]bool)
 	for k := range def.Allowed {
 		allowedLower[strings.ToLower(k)] = true
 	}
@@ -110,13 +111,14 @@ func diskCommandProps(comando string, instrucciones []string) (string, bool) {
 	seen := make(map[string]bool)
 
 	for _, token := range instrucciones {
+
 		token = strings.TrimSpace(token)
 		if token == "" {
 			continue
 		}
 
 		if !strings.Contains(token, "=") {
-			return fmt.Sprintf("Parámetro inválido: '%v'", token), true
+			return fmt.Sprintf("Parámetro inválido: '%s'", token), true
 		}
 
 		parts := strings.SplitN(token, "=", 2)
@@ -128,7 +130,7 @@ func diskCommandProps(comando string, instrucciones []string) (string, bool) {
 		}
 
 		if !allowedLower[key] {
-			return fmt.Sprintf("Parámetro no permitido para '%s': '%s'", cmd, key), true
+			return fmt.Sprintf("Parámetro no permitido para '%s': %s", cmd, key), true
 		}
 
 		if seen[key] {
@@ -147,10 +149,16 @@ func diskCommandProps(comando string, instrucciones []string) (string, bool) {
 	}
 
 	if def.Run == nil {
-		return fmt.Sprintf("Comando que no tiene handler: %s", cmd), true
+		return fmt.Sprintf("Comando sin handler: %s", cmd), true
 	}
 
-	return def.Run(comando, props)
+	// 🔥 FIX REAL: PROPAGACIÓN CORRECTA DEL ERROR
+	msg, err := def.Run(comando, props)
+	if err {
+		return msg, true
+	}
+
+	return msg, false
 }
 
 func DiskExecuteCommanWithProps(command string, parameters []string) (string, bool) {

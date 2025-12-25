@@ -70,24 +70,23 @@ func HandleCommand(w http.ResponseWriter, r *http.Request) {
 	resultado := general.ExecuteCommandList(comandos)
 
 	// =========================
-	// SALIDA CORRECTA (NO Data, NO Respuesta)
+	// EJECUTAR COMANDOS REALES
 	// =========================
-	salida := resultado.Salida
+	resultados, contadorErrores := general.GlobalCom(resultado.Salida.LstComandos)
 
-	// Ejecutar comandos reales (FDISK, MKDISK, etc.)
-	errores, contadorErrores := general.GlobalCom(salida.LstComandos)
-	fmt.Println(errores, contadorErrores)
+	// LOG EN CONSOLA
+	for _, r := range resultados {
+		fmt.Println(r)
+	}
 
-	// =========================
-	// Respuesta HTTP
-	// =========================
+	// RESPUESTA HTTP
 	if contadorErrores > 0 {
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(
 			general.ResultadoSalida(
 				"Ocurrieron errores al ejecutar los comandos",
 				true,
-				errores,
+				resultados,
 			),
 		)
 		return
@@ -98,7 +97,7 @@ func HandleCommand(w http.ResponseWriter, r *http.Request) {
 		general.ResultadoSalida(
 			"Comandos ejecutados correctamente",
 			false,
-			salida.LstComandos,
+			resultados,
 		),
 	)
 }

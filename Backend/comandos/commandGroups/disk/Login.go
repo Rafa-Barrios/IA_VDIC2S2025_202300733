@@ -10,15 +10,15 @@ import (
 )
 
 /* =========================
-   SESIÓN ACTIVA
+   SESIÓN GLOBAL
 ========================= */
 
 type Session struct {
 	User  string
 	Group string
+	Id    string
 	Uid   int32
 	Gid   int32
-	Id    string
 }
 
 var currentSession *Session = nil
@@ -29,19 +29,24 @@ var currentSession *Session = nil
 
 func loginExecute(_ string, props map[string]string) (string, bool) {
 
-	// 1️⃣ Verificar sesión activa
+	// 1️⃣ No permitir login si ya hay sesión activa
 	if currentSession != nil {
-		return "❌ Ya existe una sesión activa, primero ejecute logout", true
+		return "❌ Error: ya existe una sesión activa, debe cerrar sesión primero", true
 	}
 
-	user := props["user"]
-	pass := props["pass"]
-	id := props["id"]
+	user := strings.TrimSpace(props["user"])
+	pass := strings.TrimSpace(props["pass"])
+	id := strings.TrimSpace(props["id"])
 
-	// 2️⃣ Verificar partición montada
+	// Validar parámetros obligatorios
+	if user == "" || pass == "" || id == "" {
+		return "❌ Error: faltan parámetros obligatorios (user, pass, id)", true
+	}
+
+	// 2️⃣ Validar que la partición esté montada
 	part := GetMountedPartition(id)
 	if part == nil {
-		return "❌ No existe una partición montada con ese ID", true
+		return "❌ Error: la partición no está montada", true
 	}
 
 	// 3️⃣ Abrir disco
@@ -58,50 +63,47 @@ func loginExecute(_ string, props map[string]string) (string, bool) {
 		return "❌ Error al leer el SuperBloque", true
 	}
 
-	// 5️⃣ Leer inodo users.txt (siempre es el #1)
-	var inode structures.Inode
-	file.Seek(int64(sb.S_inode_start+sb.S_inode_s), 0)
-	binary.Read(file, binary.LittleEndian, &inode)
+	// 5️⃣ Leer contenido de users.txt (primer bloque de datos)
+	usersBlockPos := sb.S_block_start
+	buffer := make([]byte, sb.S_block_s)
 
-	// 6️⃣ Leer bloque users.txt
-	var block structures.BloqueArchivo
-	file.Seek(int64(sb.S_block_start+sb.S_block_s), 0)
-	binary.Read(file, binary.LittleEndian, &block)
+	file.Seek(int64(usersBlockPos), 0)
+	file.Read(buffer)
 
-	content := strings.Trim(string(block.B_content[:]), "\x00")
-	lines := strings.Split(content, "\n")
+	lines := strings.Split(string(buffer), "\n")
 
-	// 7️⃣ Buscar usuario
 	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+
 		fields := strings.Split(line, ",")
 		if len(fields) < 5 {
 			continue
 		}
 
-		if fields[1] == "U" {
-			u := strings.TrimSpace(fields[3])
-			p := strings.TrimSpace(fields[4])
+		// Formato: UID,U,grupo,user,pass
+		if fields[1] == "U" && fields[3] == user {
 
-			if u == user {
-				if p != pass {
-					return "❌ Contraseña incorrecta", true
-				}
-
-				// LOGIN OK
-				currentSession = &Session{
-					User:  u,
-					Group: strings.TrimSpace(fields[2]),
-					Uid:   1,
-					Gid:   1,
-					Id:    id,
-				}
-
-				return fmt.Sprintf("✅ Sesión iniciada como %s", user), false
+			if fields[4] != pass {
+				return "❌ Error: contraseña incorrecta", true
 			}
+
+			// LOGIN EXITOSO
+			currentSession = &Session{
+				User:  fields[3],
+				Group: fields[2],
+				Id:    id,
+				Uid:   1,
+				Gid:   1,
+			}
+
+			return fmt.Sprintf("✅ Sesión iniciada correctamente como %s", user), false
 		}
 	}
 
-	return "❌ Usuario no encontrado", true
+	return "❌ Error: usuario no existe", true
 }
 
 /* =========================
@@ -110,12 +112,11 @@ func loginExecute(_ string, props map[string]string) (string, bool) {
 
 func logoutExecute(_ string, _ map[string]string) (string, bool) {
 
+	// 3️⃣ No permitir logout si no hay sesión activa
 	if currentSession == nil {
-		return "❌ No hay ninguna sesión activa", true
+		return "❌ Error: no hay una sesión activa", true
 	}
 
-	user := currentSession.User
 	currentSession = nil
-
-	return fmt.Sprintf("✅ Sesión cerrada correctamente (%s)", user), false
+	return "✅ Sesión cerrada correctamente", false
 }
