@@ -24,14 +24,20 @@ type MKFS struct {
 
 func (mkfs *MKFS) Execute() {
 
-	// 1️⃣ Verificar ID montado
+	// 1️⃣ Validar tipo (solo EXT2)
+	if mkfs.Type != "" && mkfs.Type != "full" && mkfs.Type != "fast" {
+		fmt.Println("❌ Error: tipo de formato no válido")
+		return
+	}
+
+	// 2️⃣ Verificar ID montado
 	part := GetMountedPartition(mkfs.Id)
 	if part == nil {
 		fmt.Println("❌ Error: No existe una partición montada con ese ID")
 		return
 	}
 
-	// 2️⃣ Abrir disco
+	// 3️⃣ Abrir disco
 	file, err := os.OpenFile(part.Path, os.O_RDWR, 0666)
 	if err != nil {
 		fmt.Println("❌ Error al abrir el disco")
@@ -39,7 +45,12 @@ func (mkfs *MKFS) Execute() {
 	}
 	defer file.Close()
 
-	// 3️⃣ Calcular estructuras EXT2
+	// 4️⃣ Limpiar área de la partición (FULL FORMAT)
+	file.Seek(int64(part.Start), 0)
+	zero := make([]byte, part.Size)
+	file.Write(zero)
+
+	// 5️⃣ Calcular estructuras EXT2
 	size := part.Size
 	sbSize := int32(binary.Size(structures.SuperBlock{}))
 	inodeSize := int32(binary.Size(structures.Inode{}))
@@ -63,25 +74,30 @@ func (mkfs *MKFS) Execute() {
 		S_magic:             0xEF53,
 		S_inode_s:           inodeSize,
 		S_block_s:           blockSize,
+
+		// índices, NO direcciones
+		S_first_ino: 2,
+		S_first_blo: 2,
 	}
 
-	// 4️⃣ Posiciones
+	// 6️⃣ Posiciones físicas
 	sb.S_bm_inode_start = part.Start + sbSize
 	sb.S_bm_block_start = sb.S_bm_inode_start + n
 	sb.S_inode_start = sb.S_bm_block_start + (n * 3)
 	sb.S_block_start = sb.S_inode_start + (n * inodeSize)
-	sb.S_first_ino = sb.S_inode_start + (2 * inodeSize)
-	sb.S_first_blo = sb.S_block_start + (2 * blockSize)
 
-	// 5️⃣ Escribir SuperBloque
+	// 7️⃣ Escribir SuperBloque
 	file.Seek(int64(part.Start), 0)
-	binary.Write(file, binary.LittleEndian, &sb)
+	if err := binary.Write(file, binary.LittleEndian, &sb); err != nil {
+		fmt.Println("❌ Error al escribir el SuperBloque")
+		return
+	}
 
-	// 6️⃣ Inicializar Bitmaps
+	// 8️⃣ Inicializar Bitmaps
 	initBitmap(file, sb.S_bm_inode_start, n)
 	initBitmap(file, sb.S_bm_block_start, n*3)
 
-	// 7️⃣ Crear raíz y users.txt COMPLETO
+	// 9️⃣ Crear raíz y users.txt
 	createRootAndUsers(file, sb)
 
 	fmt.Println("✅ MKFS realizado correctamente en EXT2")

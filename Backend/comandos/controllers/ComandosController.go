@@ -70,7 +70,7 @@ func HandleCommand(w http.ResponseWriter, r *http.Request) {
 	resultado := general.ExecuteCommandList(comandos)
 
 	// =========================
-	// EJECUTAR COMANDOS REALES
+	// Ejecutar comandos reales
 	// =========================
 	resultados, contadorErrores := general.GlobalCom(resultado.Salida.LstComandos)
 
@@ -79,8 +79,25 @@ func HandleCommand(w http.ResponseWriter, r *http.Request) {
 		fmt.Println(r)
 	}
 
-	// RESPUESTA HTTP
-	if contadorErrores > 0 {
+	// =========================
+	// Verificación REAL de errores
+	// =========================
+	hayError := contadorErrores > 0
+
+	// Fallback: detectar errores por contenido
+	if !hayError {
+		for _, r := range resultados {
+			if strings.HasPrefix(strings.TrimSpace(r), "❌") {
+				hayError = true
+				break
+			}
+		}
+	}
+
+	// =========================
+	// Respuesta HTTP
+	// =========================
+	if hayError {
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(
 			general.ResultadoSalida(

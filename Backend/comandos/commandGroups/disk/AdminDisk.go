@@ -59,12 +59,14 @@ var commands = map[string]CommandDef{
 			"id": true, "type": true,
 		},
 		Required: []string{"id"},
-		Defaults: map[string]string{"type": "FULL"},
+		Defaults: map[string]string{"type": "full"}, // 🔥 normalizado
 		Run: func(_ string, props map[string]string) (string, bool) {
+
 			mkfs := MKFS{
 				Id:   props["id"],
-				Type: strings.ToUpper(props["type"]),
+				Type: strings.ToLower(props["type"]), // 🔥 consistente
 			}
+
 			mkfs.Execute()
 			return "MKFS ejecutado correctamente", false
 		},
@@ -152,7 +154,7 @@ func diskCommandProps(comando string, instrucciones []string) (string, bool) {
 		return fmt.Sprintf("Comando sin handler: %s", cmd), true
 	}
 
-	// 🔥 FIX REAL: PROPAGACIÓN CORRECTA DEL ERROR
+	// ✅ PROPAGACIÓN CORRECTA DEL ERROR
 	msg, err := def.Run(comando, props)
 	if err {
 		return msg, true

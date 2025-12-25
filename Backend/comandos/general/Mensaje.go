@@ -1,25 +1,52 @@
 package general
 
-// Resultado para ejecución interna de comandos
+// ============================================
+// RESULTADO INTERNO DE EJECUCIÓN DE COMANDOS
+// ============================================
+
+// Resultado representa el resultado de ejecutar
+// uno o varios comandos a nivel interno (backend).
 type Resultado struct {
+	// Mensaje general del procesamiento
 	Mensaje string
-	Error   bool
-	Salida  SalidaComandoEjecutado
+
+	// Indica si ocurrió un error durante el análisis
+	// o la ejecución de los comandos
+	Error bool
+
+	// Salida específica generada por los comandos
+	Salida SalidaComandoEjecutado
 }
 
-// Salida específica para listas de comandos ejecutados
+// ============================================
+// SALIDA DE COMANDOS EJECUTADOS
+// ============================================
+
+// SalidaComandoEjecutado contiene la lista de
+// mensajes generados por la ejecución real
+// de los comandos (uno por línea).
 type SalidaComandoEjecutado struct {
 	LstComandos []string
 }
 
-// Resultado para respuestas de la API (HTTP / Frontend)
+// ============================================
+// RESULTADO PARA RESPUESTAS HTTP / FRONTEND
+// ============================================
+
+// ResultadoAPI define el formato estándar
+// de respuesta para la API HTTP.
 type ResultadoAPI struct {
 	Error   bool        `json:"error"`
 	Message string      `json:"message"`
 	Data    interface{} `json:"data"`
 }
 
-// Helper para construir respuestas API
+// ============================================
+// HELPER DE RESPUESTA API
+// ============================================
+
+// ResultadoSalida construye una respuesta estándar
+// para el frontend o clientes HTTP.
 func ResultadoSalida(message string, isError bool, data interface{}) ResultadoAPI {
 	return ResultadoAPI{
 		Message: message,

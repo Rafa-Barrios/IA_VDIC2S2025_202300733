@@ -42,6 +42,22 @@ func obtenerLetraDisco(diskName string) byte {
 	return 'A'
 }
 
+// genera un correlativo GLOBAL
+func obtenerCorrelativoGlobal() int32 {
+	var max int32 = 0
+	for _, part := range mountedPartitions {
+		if part.Id != "" {
+			num := part.Id[2 : len(part.Id)-1]
+			var n int32
+			fmt.Sscanf(num, "%d", &n)
+			if n > max {
+				max = n
+			}
+		}
+	}
+	return max + 1
+}
+
 /* =========================
    MOUNT
 ========================= */
@@ -51,13 +67,17 @@ func mountExecute(_ string, props map[string]string) (string, bool) {
 	diskName := strings.TrimSpace(props["diskname"])
 	partName := strings.TrimSpace(props["name"])
 
+	if diskName == "" || partName == "" {
+		return "Error: diskname y name son obligatorios", true
+	}
+
 	if !strings.HasSuffix(strings.ToLower(diskName), ".mia") {
 		return "El disco debe tener extensión .mia", true
 	}
 
 	path := utils.DirectorioDisco + diskName
 
-	file, err := os.OpenFile(path, os.O_RDWR, 0666)
+	file, err := os.Open(path)
 	if err != nil {
 		return fmt.Sprintf("No se pudo abrir el disco: %s", diskName), true
 	}
@@ -68,6 +88,7 @@ func mountExecute(_ string, props map[string]string) (string, bool) {
 		return "Error al leer el MBR", true
 	}
 
+	// Buscar partición
 	partIndex := -1
 	for i := 0; i < 4; i++ {
 		part := mbr.Mbr_partitions[i]
@@ -86,32 +107,22 @@ func mountExecute(_ string, props map[string]string) (string, bool) {
 		return fmt.Sprintf("No existe la partición '%s'", partName), true
 	}
 
-	part := &mbr.Mbr_partitions[partIndex]
-
-	if part.Part_status == 1 {
-		return "La partición ya se encuentra montada", true
-	}
-
-	var correlativo int32 = 1
-	for i := 0; i < 4; i++ {
-		if mbr.Mbr_partitions[i].Part_status == 1 {
-			correlativo++
+	// ❗ Verificar si ya está montada EN MEMORIA
+	for _, mp := range mountedPartitions {
+		if strings.EqualFold(mp.Path, path) &&
+			strings.EqualFold(mp.Name, partName) {
+			return "La partición ya se encuentra montada", true
 		}
 	}
 
+	part := mbr.Mbr_partitions[partIndex]
+
+	// Generar ID
+	correlativo := obtenerCorrelativoGlobal()
 	letra := obtenerLetraDisco(diskName)
 	id := fmt.Sprintf("21%d%c", correlativo, letra)
 
-	part.Part_status = 1
-	part.Part_correlative = correlativo
-	copy(part.Part_id[:], id)
-
-	file.Seek(0, 0)
-	if err := binary.Write(file, binary.LittleEndian, &mbr); err != nil {
-		return "Error al escribir el MBR actualizado", true
-	}
-
-	// ✅ Registro en memoria
+	// Registrar SOLO en memoria
 	mountedPartitions = append(mountedPartitions, MountedPartition{
 		Id:       id,
 		DiskName: diskName,
@@ -132,11 +143,15 @@ func mountExecute(_ string, props map[string]string) (string, bool) {
 }
 
 /* =========================
-   ACCESO PARA MKFS
+   ACCESO PARA LOGIN / MKFS
 ========================= */
 
-// 🔥 FUNCIÓN CLAVE PARA MKFS
 func GetMountedPartition(id string) *MountedPartition {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return nil
+	}
+
 	for i := range mountedPartitions {
 		if strings.EqualFold(mountedPartitions[i].Id, id) {
 			return &mountedPartitions[i]
