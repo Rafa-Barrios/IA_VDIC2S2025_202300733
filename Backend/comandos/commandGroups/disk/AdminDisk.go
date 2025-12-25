@@ -73,6 +73,20 @@ var commands = map[string]CommandDef{
 			return "MKFS ejecutado correctamente", false
 		},
 	},
+	"login": {
+		Allowed: map[string]bool{
+			"user": true, "pass": true, "id": true,
+		},
+		Required: []string{"user", "pass", "id"},
+		Defaults: map[string]string{},
+		Run:      loginExecute,
+	},
+	"logout": {
+		Allowed:  map[string]bool{},
+		Required: []string{},
+		Defaults: map[string]string{},
+		Run:      logoutExecute,
+	},
 }
 
 func diskCommandProps(comando string, instrucciones []string) (string, bool) {
