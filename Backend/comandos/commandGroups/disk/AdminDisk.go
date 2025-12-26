@@ -85,6 +85,14 @@ var commands = map[string]CommandDef{
 		Defaults: map[string]string{},
 		Run:      logoutExecute,
 	},
+	"mkgrp": {
+		Allowed: map[string]bool{
+			"name": true,
+		},
+		Required: []string{"name"},
+		Defaults: map[string]string{},
+		Run:      mkgrpExecute,
+	},
 }
 
 /* =========================

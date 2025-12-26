@@ -24,8 +24,6 @@ func detectGroup(cmd string) (string, string, bool, string) {
 
 	for group, cmds := range commandGroups {
 		for _, c := range cmds {
-
-			// Validar comando exacto
 			if cmdLower == c ||
 				strings.HasPrefix(cmdLower, c+" ") ||
 				strings.HasPrefix(cmdLower, c+"-") {
@@ -66,7 +64,27 @@ func GlobalCom(lista []string) ([]string, int) {
 		case "disk":
 			color.Cyan("Administración de discos: %s", command)
 
-			// 🔴 CAMBIO CLAVE: capturar resultado del comando
+			msg, err := disk.DiskExecuteCommanWithProps(command, parametros)
+			if err {
+				color.Red("[ERROR] %s", msg)
+				errores = append(errores, msg)
+				contErrores++
+			}
+
+		case "groups":
+			color.White("Administración de grupos: %s", command)
+
+			// 🔥 AQUÍ ESTABA EL PROBLEMA
+			msg, err := disk.DiskExecuteCommanWithProps(command, parametros)
+			if err {
+				color.Red("[ERROR] %s", msg)
+				errores = append(errores, msg)
+				contErrores++
+			}
+
+		case "users":
+			color.Yellow("Administración de usuarios: %s", command)
+
 			msg, err := disk.DiskExecuteCommanWithProps(command, parametros)
 			if err {
 				color.Red("[ERROR] %s", msg)
@@ -82,12 +100,6 @@ func GlobalCom(lista []string) ([]string, int) {
 
 		case "cat":
 			color.Blue("Comando CAT")
-
-		case "users":
-			color.Yellow("Administración de usuarios: %s", command)
-
-		case "groups":
-			color.White("Administración de grupos: %s", command)
 		}
 	}
 
