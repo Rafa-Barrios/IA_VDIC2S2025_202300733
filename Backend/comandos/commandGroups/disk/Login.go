@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"Proyecto/Estructuras/structures"
+
+	"github.com/fatih/color"
 )
 
 /* =========================
@@ -70,12 +72,39 @@ func loginExecute(_ string, props map[string]string) (string, bool) {
 		return "❌ Error al leer el SuperBloque", true
 	}
 
-	// 7️⃣ Leer users.txt
-	usersBlockPos := sb.S_block_start
-	buffer := make([]byte, sb.S_block_s)
+	/* =========================
+	   LEER users.txt CORRECTAMENTE
+	========================= */
 
+	// Inodo 1 = users.txt (según mkfs)
+	var usersInode structures.Inode
+	inodePos := sb.S_inode_start + sb.S_inode_s // inodo 1
+
+	file.Seek(int64(inodePos), 0)
+	if err := binary.Read(file, binary.LittleEndian, &usersInode); err != nil {
+		return "❌ Error al leer el inodo de users.txt", true
+	}
+
+	blockIndex := usersInode.I_block[0]
+	if blockIndex == -1 {
+		return "❌ Error: users.txt no tiene bloques asignados", true
+	}
+
+	// Posición física real del bloque
+	usersBlockPos := sb.S_block_start + (blockIndex * sb.S_block_s)
+
+	buffer := make([]byte, usersInode.I_s)
 	file.Seek(int64(usersBlockPos), 0)
 	file.Read(buffer)
+
+	// DEBUG REAL
+	color.Yellow("----------- DEBUG users.txt -----------")
+	color.White(string(buffer))
+	color.Yellow("---------------------------------------")
+
+	/* =========================
+	   PROCESAR CONTENIDO
+	========================= */
 
 	lines := strings.Split(string(buffer), "\n")
 
@@ -97,7 +126,7 @@ func loginExecute(_ string, props map[string]string) (string, bool) {
 				return "❌ Error: contraseña incorrecta", true
 			}
 
-			// 8️⃣ LOGIN EXITOSO
+			// LOGIN EXITOSO
 			currentSession = &Session{
 				User:  fields[3],
 				Group: fields[2],
@@ -119,7 +148,6 @@ func loginExecute(_ string, props map[string]string) (string, bool) {
 
 func logoutExecute(_ string, _ map[string]string) (string, bool) {
 
-	// 3️⃣ No permitir logout si no hay sesión activa
 	if currentSession == nil {
 		return "❌ Error: no hay una sesión activa", true
 	}
