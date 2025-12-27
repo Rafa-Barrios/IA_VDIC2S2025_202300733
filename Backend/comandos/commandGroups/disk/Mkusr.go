@@ -83,21 +83,22 @@ func mkusrExecute(_ string, props map[string]string) (string, bool) {
 		return "❌ Error al leer el inodo de users.txt", true
 	}
 
-	blockIndex := usersInode.I_block[0]
-	if blockIndex == -1 {
-		color.Red("❌ Error: users.txt no tiene bloques asignados")
-		return "❌ Error: users.txt sin bloques", true
+	// 8️⃣ Leer contenido completo de todos los bloques asignados
+	var content strings.Builder
+	for _, blk := range usersInode.I_block {
+		if blk == -1 {
+			continue
+		}
+		blockPos := sb.S_block_start + blk*sb.S_block_s
+		buffer := make([]byte, sb.S_block_s)
+		file.Seek(int64(blockPos), 0)
+		file.Read(buffer)
+		content.WriteString(strings.TrimRight(string(buffer), "\x00"))
 	}
 
-	usersBlockPos := sb.S_block_start + (blockIndex * sb.S_block_s)
-	buffer := make([]byte, usersInode.I_s)
-	file.Seek(int64(usersBlockPos), 0)
-	file.Read(buffer)
+	lines := strings.Split(strings.TrimSpace(content.String()), "\n")
 
-	content := string(buffer)
-	lines := strings.Split(strings.TrimSpace(content), "\n")
-
-	// 8️⃣ Verificar existencia de grupo y duplicados de usuario
+	// 9️⃣ Verificar existencia de grupo y duplicados de usuario
 	maxID := 0
 	groupExists := false
 	for _, line := range lines {
@@ -132,28 +133,71 @@ func mkusrExecute(_ string, props map[string]string) (string, bool) {
 		return "❌ Error: el grupo indicado no existe", true
 	}
 
-	// 9️⃣ Crear nueva línea y verificar espacio
+	// 10️⃣ Crear nueva línea de usuario
 	newID := maxID + 1
 	newLine := fmt.Sprintf("%d,U,%s,%s,%s\n", newID, groupName, userName, password)
-	newContent := content + newLine
+	newContent := content.String() + newLine
 
-	if len(newContent) > int(sb.S_block_s) {
-		color.Red("❌ Error: users.txt sin espacio")
-		return "❌ Error: no hay espacio suficiente en users.txt", true
+	// 11️⃣ Calcular bloques necesarios y asignar si faltan
+	blockSize := int(sb.S_block_s)
+	requiredBlocks := (len(newContent) + blockSize - 1) / blockSize
+
+	currentBlocks := 0
+	for _, blk := range usersInode.I_block {
+		if blk != -1 {
+			currentBlocks++
+		}
 	}
 
-	// 10️⃣ Limpiar bloque y escribir actualizado
-	file.Seek(int64(usersBlockPos), 0)
-	file.Write(make([]byte, sb.S_block_s))
-	file.Seek(int64(usersBlockPos), 0)
-	file.Write([]byte(newContent))
+	for currentBlocks < requiredBlocks {
+		freeBlock := findFreeBlock(file, sb)
+		if freeBlock == -1 {
+			color.Red("❌ Error: no hay bloques libres disponibles")
+			return "❌ Error: no hay bloques libres disponibles", true
+		}
 
-	// 🔹 11️⃣ Actualizar tamaño del inodo para login
+		for i := 0; i < 15; i++ {
+			if usersInode.I_block[i] == -1 {
+				usersInode.I_block[i] = freeBlock
+				markBitmap(file, sb.S_bm_block_start, freeBlock)
+				currentBlocks++
+				break
+			}
+		}
+	}
+
+	// 12️⃣ Escribir contenido en bloques asignados
+	offset := 0
+	for _, blk := range usersInode.I_block {
+		if blk == -1 {
+			continue
+		}
+
+		blockPos := sb.S_block_start + blk*sb.S_block_s
+		file.Seek(int64(blockPos), 0)
+
+		end := offset + blockSize
+		if end > len(newContent) {
+			end = len(newContent)
+		}
+
+		data := make([]byte, blockSize)
+		copy(data, newContent[offset:end])
+		file.Write(data)
+
+		offset = end
+		if offset >= len(newContent) {
+			break
+		}
+	}
+
+	// 13️⃣ Actualizar tamaño y tiempo del inodo
 	usersInode.I_s = int32(len(newContent))
+	usersInode.I_mtime = int32(time.Now().Unix())
 	file.Seek(int64(inodePos), 0)
 	binary.Write(file, binary.LittleEndian, &usersInode)
 
-	// 12️⃣ Actualizar tiempo en SuperBloque
+	// 14️⃣ Actualizar SuperBloque
 	sb.S_mtime = int32(time.Now().Unix())
 	file.Seek(int64(part.Start), 0)
 	binary.Write(file, binary.LittleEndian, &sb)

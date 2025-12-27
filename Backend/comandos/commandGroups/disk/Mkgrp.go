@@ -67,7 +67,6 @@ func mkgrpExecute(_ string, props map[string]string) (string, bool) {
 
 	/* 7️⃣ Leer contenido completo de users.txt */
 	var content strings.Builder
-
 	for _, blk := range usersInode.I_block {
 		if blk == -1 {
 			continue
@@ -79,7 +78,7 @@ func mkgrpExecute(_ string, props map[string]string) (string, bool) {
 		content.WriteString(strings.TrimRight(string(buffer), "\x00"))
 	}
 
-	lines := strings.Split(content.String(), "\n")
+	lines := strings.Split(strings.TrimSpace(content.String()), "\n")
 
 	/* 8️⃣ Validar duplicados y obtener ID */
 	maxID := 0
@@ -115,7 +114,7 @@ func mkgrpExecute(_ string, props map[string]string) (string, bool) {
 	blockSize := int(sb.S_block_s)
 	requiredBlocks := (len(newContent) + blockSize - 1) / blockSize
 
-	/* 🔟 Asignar bloques si faltan */
+	/* 🔟 Asignar bloques adicionales si faltan */
 	currentBlocks := 0
 	for _, blk := range usersInode.I_block {
 		if blk != -1 {
@@ -139,7 +138,7 @@ func mkgrpExecute(_ string, props map[string]string) (string, bool) {
 		}
 	}
 
-	/* 1️⃣1️⃣ Reescribir contenido */
+	/* 1️⃣1️⃣ Escribir contenido en bloques asignados */
 	offset := 0
 	for _, blk := range usersInode.I_block {
 		if blk == -1 {
