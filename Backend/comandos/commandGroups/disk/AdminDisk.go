@@ -93,6 +93,14 @@ var commands = map[string]CommandDef{
 		Defaults: map[string]string{},
 		Run:      mkgrpExecute,
 	},
+	"mkusr": {
+		Allowed: map[string]bool{
+			"user": true, "pass": true, "grp": true,
+		},
+		Required: []string{"user", "pass", "grp"},
+		Defaults: map[string]string{},
+		Run:      mkusrExecute,
+	},
 }
 
 /* =========================

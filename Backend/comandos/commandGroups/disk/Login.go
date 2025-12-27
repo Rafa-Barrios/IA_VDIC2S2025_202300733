@@ -47,6 +47,11 @@ func loginExecute(_ string, props map[string]string) (string, bool) {
 		return "❌ Error: faltan parámetros obligatorios (user, pass, id)", true
 	}
 
+	// 2.1️⃣ Validar máximo 10 caracteres
+	if len(user) > 10 || len(pass) > 10 {
+		return "❌ Error: usuario o contraseña exceden 10 caracteres", true
+	}
+
 	// 3️⃣ Validar que la partición esté montada
 	part := GetMountedPartition(id)
 	if part == nil {
@@ -79,7 +84,6 @@ func loginExecute(_ string, props map[string]string) (string, bool) {
 	// Inodo 1 = users.txt (según mkfs)
 	var usersInode structures.Inode
 	inodePos := sb.S_inode_start + sb.S_inode_s // inodo 1
-
 	file.Seek(int64(inodePos), 0)
 	if err := binary.Read(file, binary.LittleEndian, &usersInode); err != nil {
 		return "❌ Error al leer el inodo de users.txt", true
