@@ -108,7 +108,17 @@ func GlobalCom(lista []string) ([]string, int) {
 			}
 
 		case "cat":
-			color.Blue("Comando CAT")
+			color.Blue("Comando CAT: %s", command)
+
+			// 🔹 Ejecutar cat correctamente
+			msg, err := disk.DiskExecuteCommanWithProps(command, parametros)
+			if err {
+				color.Red("[ERROR] %s", msg)
+				errores = append(errores, msg)
+				contErrores++
+			} else if msg != "" {
+				color.Blue(msg) // se muestra el contenido de los archivos
+			}
 		}
 	}
 

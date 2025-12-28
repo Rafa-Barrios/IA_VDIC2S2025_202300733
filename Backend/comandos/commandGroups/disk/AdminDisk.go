@@ -101,6 +101,14 @@ var commands = map[string]CommandDef{
 		Defaults: map[string]string{},
 		Run:      mkusrExecute,
 	},
+	"cat": {
+		Allowed: map[string]bool{
+			"file1": true,
+		},
+		Required: []string{"file1"},
+		Defaults: map[string]string{},
+		Run:      catExecute,
+	},
 	"mkdir": {
 		Allowed: map[string]bool{
 			"path": true,
@@ -166,6 +174,12 @@ func diskCommandProps(comando string, instrucciones []string) (string, bool) {
 
 		if key == "" {
 			return fmt.Sprintf("Parámetro inválido: '%s'", token), true
+		}
+
+		if cmd == "cat" && strings.HasPrefix(key, "file") {
+			props[key] = val
+			seen[key] = true
+			continue
 		}
 
 		if !allowedLower[key] {

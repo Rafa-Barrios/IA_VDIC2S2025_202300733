@@ -5,7 +5,6 @@ import (
 	"os"
 	"path"
 	"strings"
-	"time"
 
 	"Proyecto/Estructuras/structures"
 
@@ -129,72 +128,4 @@ func mkdirExecute(_ string, props map[string]string) (string, bool) {
 	}
 
 	return fmt.Sprintf("✅ Carpeta '%s' creada correctamente", dirPath), false
-}
-
-/* =========================
-   CREAR DIRECTORIO
-========================= */
-
-func createDirectory(
-	file *os.File,
-	sb structures.SuperBlock,
-	parent int32,
-	name string,
-) (int32, error) {
-
-	inodeIndex := FindFreeInode(file, sb)
-	blockIndex := FindFreeBlock(file, sb)
-
-	if inodeIndex == -1 || blockIndex == -1 {
-		return -1, fmt.Errorf("❌ Error: no hay espacio disponible")
-	}
-
-	now := int32(time.Now().Unix())
-
-	// Inodo de la nueva carpeta
-	var inode structures.Inode
-	inode.I_uid = currentSession.Uid
-	inode.I_gid = currentSession.Gid
-	inode.I_s = sb.S_block_s
-	inode.I_atime = now
-	inode.I_ctime = now
-	inode.I_mtime = now
-	inode.I_type = 0 // carpeta
-	inode.I_perm = [3]byte{6, 6, 4}
-
-	for i := 0; i < 15; i++ {
-		inode.I_block[i] = -1
-	}
-	inode.I_block[0] = blockIndex
-
-	if err := WriteInode(file, sb, inodeIndex, inode); err != nil {
-		return -1, err
-	}
-
-	// Bloque de carpeta
-	var folder structures.BloqueCarpeta
-	copy(folder.B_content[0].B_name[:], ".")
-	folder.B_content[0].B_inodo = inodeIndex
-
-	copy(folder.B_content[1].B_name[:], "..")
-	folder.B_content[1].B_inodo = parent
-
-	for i := 2; i < 4; i++ {
-		folder.B_content[i].B_inodo = -1
-	}
-
-	if err := WriteBlock(file, sb, blockIndex, &folder); err != nil {
-		return -1, err
-	}
-
-	// Marcar bitmaps
-	MarkBitmap(file, sb.S_bm_inode_start, inodeIndex)
-	MarkBitmap(file, sb.S_bm_block_start, blockIndex)
-
-	// Añadir al bloque del padre
-	if err := addEntryToDirectory(file, sb, parent, name, inodeIndex); err != nil {
-		return -1, err
-	}
-
-	return inodeIndex, nil
 }
