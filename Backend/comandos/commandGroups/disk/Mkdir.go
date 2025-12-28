@@ -31,6 +31,7 @@ func mkdirExecute(_ string, props map[string]string) (string, bool) {
 	dirPath := strings.TrimSpace(props["path"])
 	pFlag := false
 
+	// Detectar el flag -p
 	if _, ok := props["p"]; ok {
 		if props["p"] != "" {
 			return "❌ Error: el parámetro -p no recibe valores", true
@@ -57,13 +58,8 @@ func mkdirExecute(_ string, props map[string]string) (string, bool) {
 
 	/* 5️⃣ Leer SuperBloque */
 	var sb structures.SuperBlock
-	file.Seek(int64(part.Start), 0)
-	if err := ReadBlock(file, sb, 0, &sb); err != nil {
-		// fallback seguro si ReadBlock no se usa para SB
-		file.Seek(int64(part.Start), 0)
-		if err := ReadSuperBlock(file, &sb); err != nil {
-			return "❌ Error al leer el SuperBloque", true
-		}
+	if err := ReadSuperBlock(file, int64(part.Start), &sb); err != nil {
+		return "❌ Error al leer el SuperBloque", true
 	}
 
 	/* 6️⃣ Procesar ruta */
@@ -88,7 +84,7 @@ func mkdirExecute(_ string, props map[string]string) (string, bool) {
 		found := false
 		var nextInode int32
 
-		/* Buscar carpeta existente */
+		/* Buscar carpeta existente en los bloques del inode actual */
 		for _, blk := range inode.I_block {
 			if blk == -1 {
 				continue
@@ -102,9 +98,6 @@ func mkdirExecute(_ string, props map[string]string) (string, bool) {
 			for _, content := range block.B_content {
 				name := strings.TrimRight(string(content.B_name[:]), "\x00")
 				if name == dir {
-					if !pFlag && i == len(dirs)-1 {
-						return fmt.Sprintf("❌ Error: la carpeta '%s' ya existe", dir), true
-					}
 					nextInode = content.B_inodo
 					found = true
 					break
@@ -115,18 +108,20 @@ func mkdirExecute(_ string, props map[string]string) (string, bool) {
 			}
 		}
 
-		/* Crear carpeta */
-		if !found {
+		isLast := i == len(dirs)-1
 
-			if !pFlag && i != len(dirs)-1 {
+		/* Crear carpeta si no existe */
+		if !found {
+			if !pFlag && !isLast {
+				// ❌ Error si falta un padre y no hay -p
 				return fmt.Sprintf("❌ Error: la carpeta '%s' no existe", dir), true
 			}
 
+			// ✅ Crear carpeta intermedia o final
 			newInode, err := createDirectory(file, sb, currentInode, dir)
 			if err != nil {
 				return err.Error(), true
 			}
-
 			nextInode = newInode
 		}
 
@@ -156,6 +151,7 @@ func createDirectory(
 
 	now := int32(time.Now().Unix())
 
+	// Inodo de la nueva carpeta
 	var inode structures.Inode
 	inode.I_uid = currentSession.Uid
 	inode.I_gid = currentSession.Gid
@@ -175,6 +171,7 @@ func createDirectory(
 		return -1, err
 	}
 
+	// Bloque de carpeta
 	var folder structures.BloqueCarpeta
 	copy(folder.B_content[0].B_name[:], ".")
 	folder.B_content[0].B_inodo = inodeIndex
@@ -190,10 +187,14 @@ func createDirectory(
 		return -1, err
 	}
 
+	// Marcar bitmaps
 	MarkBitmap(file, sb.S_bm_inode_start, inodeIndex)
 	MarkBitmap(file, sb.S_bm_block_start, blockIndex)
 
-	addEntryToDirectory(file, sb, parent, name, inodeIndex)
+	// Añadir al bloque del padre
+	if err := addEntryToDirectory(file, sb, parent, name, inodeIndex); err != nil {
+		return -1, err
+	}
 
 	return inodeIndex, nil
 }

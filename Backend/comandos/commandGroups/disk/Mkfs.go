@@ -66,7 +66,7 @@ func (mkfs *MKFS) Execute() {
 		S_filesystem_type:   2,
 		S_inodes_count:      n,
 		S_blocks_count:      n * 3,
-		S_free_inodes_count: n - 2,
+		S_free_inodes_count: n - 2, // root y users.txt ocupan 2
 		S_free_blocks_count: (n * 3) - 2,
 		S_mtime:             int32(time.Now().Unix()),
 		S_umtime:            0,
@@ -74,10 +74,8 @@ func (mkfs *MKFS) Execute() {
 		S_magic:             0xEF53,
 		S_inode_s:           inodeSize,
 		S_block_s:           blockSize,
-
-		// índices, NO direcciones
-		S_first_ino: 2,
-		S_first_blo: 2,
+		S_first_ino:         2,
+		S_first_blo:         2,
 	}
 
 	// 6️⃣ Posiciones físicas
@@ -97,7 +95,7 @@ func (mkfs *MKFS) Execute() {
 	initBitmap(file, sb.S_bm_inode_start, n)
 	initBitmap(file, sb.S_bm_block_start, n*3)
 
-	// 9️⃣ Crear raíz y users.txt
+	// 9️⃣ Crear raíz y users.txt con bloques asignados y bitmaps marcados
 	createRootAndUsers(file, sb)
 
 	fmt.Println("✅ MKFS realizado correctamente en EXT2")
@@ -127,23 +125,24 @@ func createRootAndUsers(file *os.File, sb structures.SuperBlock) {
 	root := structures.Inode{
 		I_uid:   0,
 		I_gid:   0,
-		I_s:     0,
+		I_s:     sb.S_block_s,
 		I_atime: now,
 		I_ctime: now,
 		I_mtime: now,
 		I_type:  0,
-		I_perm:  [3]byte{'7', '7', '7'},
+		I_perm:  [3]byte{7, 7, 7},
 	}
 	for i := 0; i < 15; i++ {
 		root.I_block[i] = -1
 	}
-	root.I_block[0] = 0
+	root.I_block[0] = 0 // primer bloque para root
 
 	// ---- INODO users.txt ----
 	users := root
 	users.I_type = 1
-	users.I_perm = [3]byte{'6', '6', '4'}
+	users.I_perm = [3]byte{6, 6, 4}
 	users.I_block[0] = 1
+	users.I_s = int32(len("1,G,root\n1,U,root,root,123\n"))
 
 	// ---- BLOQUE CARPETA RAÍZ ----
 	var folder structures.BloqueCarpeta
@@ -159,20 +158,20 @@ func createRootAndUsers(file *os.File, sb structures.SuperBlock) {
 	content := "1,G,root\n1,U,root,root,123\n"
 	var fileBlock structures.BloqueArchivo
 	copy(fileBlock.B_content[:], content)
-	users.I_s = int32(len(content))
 
-	// ---- ESCRITURA ----
+	// ---- ESCRITURA INODOS ----
 	file.Seek(int64(sb.S_inode_start), 0)
 	binary.Write(file, binary.LittleEndian, &root)
 	binary.Write(file, binary.LittleEndian, &users)
 
+	// ---- ESCRITURA BLOQUES ----
 	file.Seek(int64(sb.S_block_start), 0)
 	binary.Write(file, binary.LittleEndian, &folder)
 	binary.Write(file, binary.LittleEndian, &fileBlock)
 
 	// ---- BITMAPS ----
-	markBitmap(file, sb.S_bm_inode_start, 0)
-	markBitmap(file, sb.S_bm_inode_start, 1)
-	markBitmap(file, sb.S_bm_block_start, 0)
-	markBitmap(file, sb.S_bm_block_start, 1)
+	markBitmap(file, sb.S_bm_inode_start, 0) // root
+	markBitmap(file, sb.S_bm_inode_start, 1) // users.txt
+	markBitmap(file, sb.S_bm_block_start, 0) // root
+	markBitmap(file, sb.S_bm_block_start, 1) // users.txt
 }

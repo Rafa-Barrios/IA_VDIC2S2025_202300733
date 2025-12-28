@@ -12,10 +12,17 @@ import (
    SUPER BLOQUE
 ========================= */
 
-func ReadSuperBlock(file *os.File, sb *structures.SuperBlock) error {
+func ReadSuperBlock(file *os.File, start int64, sb *structures.SuperBlock) error {
+	// Posicionarse en el inicio real de la partición
+	if _, err := file.Seek(start, 0); err != nil {
+		return fmt.Errorf("error al posicionar el SuperBloque")
+	}
+
+	// Leer SuperBloque
 	if err := binary.Read(file, binary.LittleEndian, sb); err != nil {
 		return fmt.Errorf("error al leer el SuperBloque")
 	}
+
 	return nil
 }
 
@@ -27,7 +34,9 @@ func ReadInode(file *os.File, sb structures.SuperBlock, inodeIndex int32) (struc
 	var inode structures.Inode
 
 	inodePos := sb.S_inode_start + inodeIndex*sb.S_inode_s
-	file.Seek(int64(inodePos), 0)
+	if _, err := file.Seek(int64(inodePos), 0); err != nil {
+		return inode, fmt.Errorf("error al posicionar inodo %d", inodeIndex)
+	}
 
 	if err := binary.Read(file, binary.LittleEndian, &inode); err != nil {
 		return inode, fmt.Errorf("error al leer inodo %d", inodeIndex)
@@ -38,7 +47,9 @@ func ReadInode(file *os.File, sb structures.SuperBlock, inodeIndex int32) (struc
 
 func WriteInode(file *os.File, sb structures.SuperBlock, inodeIndex int32, inode structures.Inode) error {
 	inodePos := sb.S_inode_start + inodeIndex*sb.S_inode_s
-	file.Seek(int64(inodePos), 0)
+	if _, err := file.Seek(int64(inodePos), 0); err != nil {
+		return fmt.Errorf("error al posicionar inodo %d", inodeIndex)
+	}
 
 	if err := binary.Write(file, binary.LittleEndian, &inode); err != nil {
 		return fmt.Errorf("error al escribir inodo %d", inodeIndex)
@@ -53,7 +64,9 @@ func WriteInode(file *os.File, sb structures.SuperBlock, inodeIndex int32, inode
 
 func ReadBlock(file *os.File, sb structures.SuperBlock, blockIndex int32, out interface{}) error {
 	blockPos := sb.S_block_start + blockIndex*sb.S_block_s
-	file.Seek(int64(blockPos), 0)
+	if _, err := file.Seek(int64(blockPos), 0); err != nil {
+		return fmt.Errorf("error al posicionar bloque %d", blockIndex)
+	}
 
 	if err := binary.Read(file, binary.LittleEndian, out); err != nil {
 		return fmt.Errorf("error al leer bloque %d", blockIndex)
@@ -64,7 +77,9 @@ func ReadBlock(file *os.File, sb structures.SuperBlock, blockIndex int32, out in
 
 func WriteBlock(file *os.File, sb structures.SuperBlock, blockIndex int32, data interface{}) error {
 	blockPos := sb.S_block_start + blockIndex*sb.S_block_s
-	file.Seek(int64(blockPos), 0)
+	if _, err := file.Seek(int64(blockPos), 0); err != nil {
+		return fmt.Errorf("error al posicionar bloque %d", blockIndex)
+	}
 
 	if err := binary.Write(file, binary.LittleEndian, data); err != nil {
 		return fmt.Errorf("error al escribir bloque %d", blockIndex)
@@ -80,10 +95,14 @@ func WriteBlock(file *os.File, sb structures.SuperBlock, blockIndex int32, data 
 func FindFreeInode(file *os.File, sb structures.SuperBlock) int32 {
 	for i := int32(0); i < sb.S_inodes_count; i++ {
 		pos := sb.S_bm_inode_start + i
-		file.Seek(int64(pos), 0)
+		if _, err := file.Seek(int64(pos), 0); err != nil {
+			continue
+		}
 
 		b := make([]byte, 1)
-		file.Read(b)
+		if _, err := file.Read(b); err != nil {
+			continue
+		}
 
 		if b[0] == 0 {
 			return i
@@ -95,10 +114,14 @@ func FindFreeInode(file *os.File, sb structures.SuperBlock) int32 {
 func FindFreeBlock(file *os.File, sb structures.SuperBlock) int32 {
 	for i := int32(0); i < sb.S_blocks_count; i++ {
 		pos := sb.S_bm_block_start + i
-		file.Seek(int64(pos), 0)
+		if _, err := file.Seek(int64(pos), 0); err != nil {
+			continue
+		}
 
 		b := make([]byte, 1)
-		file.Read(b)
+		if _, err := file.Read(b); err != nil {
+			continue
+		}
 
 		if b[0] == 0 {
 			return i
@@ -130,40 +153,55 @@ func addEntryToDirectory(
 		return err
 	}
 
-	for i, blk := range parent.I_block {
-
+	// 1️⃣ Buscar espacio en bloques existentes
+	for _, blk := range parent.I_block {
 		if blk == -1 {
-			newBlock := FindFreeBlock(file, sb)
-			if newBlock == -1 {
-				return fmt.Errorf("no hay bloques libres para el directorio padre")
-			}
-
-			parent.I_block[i] = newBlock
-			WriteInode(file, sb, parentInode, parent)
-			MarkBitmap(file, sb.S_bm_block_start, newBlock)
-
-			var dirBlock structures.BloqueCarpeta
-			for j := 0; j < 4; j++ {
-				dirBlock.B_content[j].B_inodo = -1
-			}
-
-			copy(dirBlock.B_content[0].B_name[:], name)
-			dirBlock.B_content[0].B_inodo = childInode
-
-			return WriteBlock(file, sb, newBlock, &dirBlock)
+			continue
 		}
 
-		var block structures.BloqueCarpeta
-		ReadBlock(file, sb, blk, &block)
+		var folder structures.BloqueCarpeta
+		if err := ReadBlock(file, sb, blk, &folder); err != nil {
+			return err
+		}
 
-		for j := 0; j < 4; j++ {
-			if block.B_content[j].B_inodo == -1 {
-				copy(block.B_content[j].B_name[:], name)
-				block.B_content[j].B_inodo = childInode
-				return WriteBlock(file, sb, blk, &block)
+		for i := 0; i < 4; i++ {
+			if folder.B_content[i].B_inodo == -1 {
+
+				copy(folder.B_content[i].B_name[:], name)
+				folder.B_content[i].B_inodo = childInode
+
+				return WriteBlock(file, sb, blk, &folder)
 			}
 		}
 	}
 
-	return fmt.Errorf("no hay espacio en el directorio padre")
+	// 2️⃣ No hay espacio → crear nuevo bloque
+	newBlock := FindFreeBlock(file, sb)
+	if newBlock == -1 {
+		return fmt.Errorf("❌ Error: no hay bloques disponibles")
+	}
+
+	var newFolder structures.BloqueCarpeta
+	for i := 0; i < 4; i++ {
+		newFolder.B_content[i].B_inodo = -1
+	}
+
+	copy(newFolder.B_content[0].B_name[:], name)
+	newFolder.B_content[0].B_inodo = childInode
+
+	// 3️⃣ Asignar bloque al inode padre
+	for i := 0; i < 15; i++ {
+		if parent.I_block[i] == -1 {
+			parent.I_block[i] = newBlock
+			break
+		}
+	}
+
+	if err := WriteInode(file, sb, parentInode, parent); err != nil {
+		return err
+	}
+
+	MarkBitmap(file, sb.S_bm_block_start, newBlock)
+
+	return WriteBlock(file, sb, newBlock, &newFolder)
 }

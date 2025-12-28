@@ -101,6 +101,27 @@ var commands = map[string]CommandDef{
 		Defaults: map[string]string{},
 		Run:      mkusrExecute,
 	},
+	"mkdir": {
+		Allowed: map[string]bool{
+			"path": true,
+			"p":    true,
+		},
+		Required: []string{"path"},
+		Defaults: map[string]string{},
+		Run:      mkdirExecute,
+	},
+	"mkfile": {
+		Allowed: map[string]bool{
+			"path": true,
+			"size": true,
+			"r":    true,
+		},
+		Required: []string{"path"},
+		Defaults: map[string]string{
+			"size": "0",
+		},
+		Run: mkfileExecute,
+	},
 }
 
 /* =========================

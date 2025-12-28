@@ -98,6 +98,15 @@ func GlobalCom(lista []string) ([]string, int) {
 		case "files":
 			color.Green("Administración de archivos: %s", command)
 
+			msg, err := disk.DiskExecuteCommanWithProps(command, parametros)
+			if err {
+				color.Red("[ERROR] %s", msg)
+				errores = append(errores, msg)
+				contErrores++
+			} else if msg != "" {
+				color.Green(msg)
+			}
+
 		case "cat":
 			color.Blue("Comando CAT")
 		}
