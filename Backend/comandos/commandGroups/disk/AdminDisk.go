@@ -29,7 +29,7 @@ var commands = map[string]CommandDef{
 		},
 		Required: []string{"diskname"},
 		Defaults: map[string]string{},
-		Run:      nil,
+		Run:      rmdiskExecute,
 	},
 	"fdisk": {
 		Allowed: map[string]bool{
