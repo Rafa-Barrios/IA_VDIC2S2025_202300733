@@ -12,9 +12,7 @@ import (
 	"github.com/fatih/color"
 )
 
-/* =========================
-   MKFILE
-========================= */
+/* MKFILE */
 
 func mkfileExecute(_ string, props map[string]string) (string, bool) {
 
