@@ -26,7 +26,7 @@ type Resultado struct {
 // mensajes generados por la ejecución real
 // de los comandos (uno por línea).
 type SalidaComandoEjecutado struct {
-	LstComandos []string
+	LstComandos []string // Lista de logs legibles tipo consola
 }
 
 // ============================================
@@ -38,7 +38,7 @@ type SalidaComandoEjecutado struct {
 type ResultadoAPI struct {
 	Error   bool        `json:"error"`
 	Message string      `json:"message"`
-	Data    interface{} `json:"data"`
+	Data    interface{} `json:"data"` // Ahora puede contener []string con logs
 }
 
 // ============================================
@@ -48,6 +48,10 @@ type ResultadoAPI struct {
 // ResultadoSalida construye una respuesta estándar
 // para el frontend o clientes HTTP.
 func ResultadoSalida(message string, isError bool, data interface{}) ResultadoAPI {
+	// Si data es nil, inicializamos como array vacío para evitar frontend con null
+	if data == nil {
+		data = []string{}
+	}
 	return ResultadoAPI{
 		Message: message,
 		Error:   isError,

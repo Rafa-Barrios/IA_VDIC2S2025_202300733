@@ -4,16 +4,13 @@
     let selectedFile: File | null = null;
     let loading = false;
 
-    // Manejar selección de archivo
     function handleFileChange(event: Event) {
         const input = event.target as HTMLInputElement;
-
         if (input.files && input.files.length > 0) {
             selectedFile = input.files[0];
         }
     }
 
-    // Cargar archivo al textarea de entrada
     function loadFile() {
         if (!selectedFile) {
             alert("Seleccione un archivo primero");
@@ -21,16 +18,14 @@
         }
 
         const reader = new FileReader();
-                reader.onload = (e: ProgressEvent<FileReader>) => {
+        reader.onload = (e: ProgressEvent<FileReader>) => {
             if (e.target && typeof e.target.result === "string") {
                 inputCommands = e.target.result;
             }
         };
-
         reader.readAsText(selectedFile);
     }
 
-    // Ejecutar comandos
     async function executeCommands() {
         if (!inputCommands.trim()) {
             alert("No hay comandos para ejecutar");
@@ -43,59 +38,55 @@
         try {
             const response = await fetch("http://localhost:9700/commands", {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    Comandos: inputCommands
-                })
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ Comandos: inputCommands })
             });
 
             const data = await response.json();
 
-            // Ajusta esto si tu backend devuelve otro formato
-            if (Array.isArray(data)) {
-                outputCommands = data.join("\n");
-            } else if (data.mensaje) {
-                outputCommands = data.mensaje;
+            if (Array.isArray(data.data)) {
+                outputCommands = data.data.join("\n");
             } else {
-                outputCommands = JSON.stringify(data, null, 2);
+                outputCommands = data.message;
             }
 
-        } catch (error) {
-            outputCommands = "Error al conectar con el servidor:\n" + error;
+        } catch {
+            outputCommands = "Error al conectar con el servidor";
         } finally {
             loading = false;
         }
+    }
+
+    // 🔹 NUEVO: limpiar todo
+    function clearAll() {
+        inputCommands = "";
+        outputCommands = "";
+        selectedFile = null;
+
+        const fileInput = document.getElementById("fileInput") as HTMLInputElement;
+        if (fileInput) fileInput.value = "";
     }
 </script>
 
 <style>
     .container {
-        padding: 20px;
+        padding: 30px;
         font-family: Arial, sans-serif;
+        max-width: 1400px;
+        margin: auto;
     }
 
     h1 {
         text-align: center;
-        color: #1e40af;
-        margin-bottom: 20px;
+        font-size: 36px;
+        font-weight: bold;
+        margin-bottom: 25px;
+        color: #1e293b;
     }
 
     .panels {
         display: flex;
-        gap: 20px;
-    }
-
-    textarea {
-        width: 100%;
-        height: 350px;
-        resize: none;
-        padding: 10px;
-        font-family: monospace;
-        font-size: 14px;
-        border: 1px solid #ccc;
-        border-radius: 6px;
+        gap: 40px;
     }
 
     .panel {
@@ -106,45 +97,60 @@
 
     .panel label {
         font-weight: bold;
-        margin-bottom: 5px;
+        margin-bottom: 8px;
     }
 
-    .buttons {
-        margin-top: 15px;
+    textarea {
+        width: 100%;
+        height: 350px;
+        resize: none;
+        padding: 12px;
+        font-family: monospace;
+        font-size: 14px;
+        border: 1px solid #cbd5f5;
+        border-radius: 8px;
+    }
+
+    .controls {
         display: flex;
         gap: 10px;
+        align-items: center;
+        margin-bottom: 10px;
     }
 
-    button {
-        padding: 8px 14px;
+    button, .file-label {
+        padding: 9px 16px;
         border: none;
-        border-radius: 6px;
-        cursor: pointer;
+        border-radius: 8px;
+        background-color: #2563eb;
+        color: white;
         font-weight: bold;
+        cursor: pointer;
+        text-align: center;
     }
 
-    button:hover {
+    button:hover, .file-label:hover {
         opacity: 0.9;
     }
 
-    .btn-file {
-        background-color: #64748b;
-        color: white;
-    }
-
-    .btn-load {
-        background-color: #0ea5e9;
-        color: white;
-    }
-
-    .btn-run {
-        background-color: #22c55e;
-        color: white;
-    }
-
     button:disabled {
-        background-color: #9ca3af;
+        background-color: #94a3b8;
         cursor: not-allowed;
+    }
+
+    .file-input {
+        display: none;
+    }
+
+    .file-name {
+        font-size: 13px;
+        color: #475569;
+    }
+
+    .bottom-buttons {
+        margin-top: 25px;
+        display: flex;
+        justify-content: center;
     }
 </style>
 
@@ -152,26 +158,61 @@
     <h1>GoDisk</h1>
 
     <div class="panels">
-        <!-- Entrada -->
+        <!-- ENTRADA -->
         <div class="panel">
             <label>Entrada de Comandos</label>
-            <textarea bind:value={inputCommands}
-                placeholder="Ingrese comandos aquí o cargue un archivo..."></textarea>
+
+            <div class="controls">
+                <input
+                    id="fileInput"
+                    type="file"
+                    class="file-input"
+                    on:change={handleFileChange}
+                />
+
+                <label for="fileInput" class="file-label">
+                    Elegir archivo
+                </label>
+
+                <button type="button" on:click={loadFile}>
+                    Cargar
+                </button>
+
+                <span class="file-name">
+                    {selectedFile ? selectedFile.name : "No se eligió ningún archivo"}
+                </span>
+            </div>
+
+            <textarea
+                bind:value={inputCommands}
+                placeholder="Ingrese comandos aquí o cargue un archivo..."
+            ></textarea>
         </div>
 
-        <!-- Salida -->
+        <!-- SALIDA -->
         <div class="panel">
             <label>Salida de Comandos</label>
-            <textarea bind:value={outputCommands} readonly
-                placeholder="Aquí se mostrará la salida del backend..."></textarea>
+
+            <div class="controls">
+                <button on:click={executeCommands} disabled={loading}>
+                    {loading ? "Ejecutando..." : "Ejecutar"}
+                </button>
+
+                <!-- 🔹 NUEVO BOTÓN -->
+                <button on:click={clearAll}>
+                    Limpiar
+                </button>
+            </div>
+
+            <textarea
+                bind:value={outputCommands}
+                readonly
+                placeholder="Aquí se mostrará la salida del backend..."
+            ></textarea>
         </div>
     </div>
 
-    <div class="buttons">
-        <input type="file" on:change={handleFileChange} />
-        <button class="btn-load" on:click={loadFile}>Cargar</button>
-        <button class="btn-run" on:click={executeCommands} disabled={loading}>
-            {loading ? "Ejecutando..." : "Ejecutar"}
-        </button>
+    <div class="bottom-buttons">
+        <button disabled>Generar reportes</button>
     </div>
 </div>

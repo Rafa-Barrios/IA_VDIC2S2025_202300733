@@ -36,10 +36,15 @@ func detectGroup(cmd string) (string, string, bool, string) {
 	return "", "", true, "Comando no reconocido"
 }
 
-// Ejecuta lista de comandos
-func GlobalCom(lista []string) ([]string, int) {
+// ======================================================
+// EJECUTA COMANDOS
+// - Consola: mensajes técnicos
+// - Frontend: SOLO mensajes finales claros
+// ======================================================
+func GlobalCom(lista []string) ([]string, int, []string) {
 
 	var errores []string
+	var frontendLogs []string // 🔥 SOLO lo que verá el frontend
 	contErrores := 0
 
 	for _, comm := range lista {
@@ -51,8 +56,11 @@ func GlobalCom(lista []string) ([]string, int) {
 
 		group, command, blnError, strError := detectGroup(comm)
 		if blnError {
-			color.Red("[ERROR] %s -> %s", comm, strError)
+			msgError := "[ERROR] " + strError
+			color.Red(msgError)
+
 			errores = append(errores, strError)
+			frontendLogs = append(frontendLogs, msgError)
 			contErrores++
 			continue
 		}
@@ -61,66 +69,104 @@ func GlobalCom(lista []string) ([]string, int) {
 
 		switch group {
 
+		// =========================
+		// DISK
+		// =========================
 		case "disk":
 			color.Cyan("Administración de discos: %s", command)
 
 			msg, err := disk.DiskExecuteCommanWithProps(command, parametros)
 			if err {
-				color.Red("[ERROR] %s", msg)
+				msgError := "[ERROR] " + msg
+				color.Red(msgError)
+
 				errores = append(errores, msg)
+				frontendLogs = append(frontendLogs, msgError)
 				contErrores++
+			} else if msg != "" {
+				color.Cyan(msg)
+				frontendLogs = append(frontendLogs, msg) // ✅ SOLO mensaje final
 			}
 
+		// =========================
+		// GROUPS
+		// =========================
 		case "groups":
 			color.White("Administración de grupos: %s", command)
 
-			// 🔥 AQUÍ ESTABA EL PROBLEMA
 			msg, err := disk.DiskExecuteCommanWithProps(command, parametros)
 			if err {
-				color.Red("[ERROR] %s", msg)
+				msgError := "[ERROR] " + msg
+				color.Red(msgError)
+
 				errores = append(errores, msg)
+				frontendLogs = append(frontendLogs, msgError)
 				contErrores++
+			} else if msg != "" {
+				frontendLogs = append(frontendLogs, msg)
 			}
 
+		// =========================
+		// USERS
+		// =========================
 		case "users":
 			color.Yellow("Administración de usuarios: %s", command)
 
 			msg, err := disk.DiskExecuteCommanWithProps(command, parametros)
 			if err {
-				color.Red("[ERROR] %s", msg)
+				msgError := "[ERROR] " + msg
+				color.Red(msgError)
+
 				errores = append(errores, msg)
+				frontendLogs = append(frontendLogs, msgError)
 				contErrores++
+			} else if msg != "" {
+				frontendLogs = append(frontendLogs, msg)
 			}
 
-		case "reports":
-			color.Magenta("Administración de reportes: %s", command)
-
+		// =========================
+		// FILES
+		// =========================
 		case "files":
 			color.Green("Administración de archivos: %s", command)
 
 			msg, err := disk.DiskExecuteCommanWithProps(command, parametros)
 			if err {
-				color.Red("[ERROR] %s", msg)
+				msgError := "[ERROR] " + msg
+				color.Red(msgError)
+
 				errores = append(errores, msg)
+				frontendLogs = append(frontendLogs, msgError)
 				contErrores++
 			} else if msg != "" {
-				color.Green(msg)
+				frontendLogs = append(frontendLogs, msg)
 			}
 
+		// =========================
+		// CAT
+		// =========================
 		case "cat":
 			color.Blue("Comando CAT: %s", command)
 
-			// 🔹 Ejecutar cat correctamente
 			msg, err := disk.DiskExecuteCommanWithProps(command, parametros)
 			if err {
-				color.Red("[ERROR] %s", msg)
+				msgError := "[ERROR] " + msg
+				color.Red(msgError)
+
 				errores = append(errores, msg)
+				frontendLogs = append(frontendLogs, msgError)
 				contErrores++
 			} else if msg != "" {
-				color.Blue(msg) // se muestra el contenido de los archivos
+				frontendLogs = append(frontendLogs, msg)
 			}
+
+		// =========================
+		// REPORTS (si luego devuelve msg)
+		// =========================
+		case "reports":
+			color.Magenta("Administración de reportes: %s", command)
 		}
 	}
 
-	return errores, contErrores
+	return errores, contErrores, frontendLogs
 }

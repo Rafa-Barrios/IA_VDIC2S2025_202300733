@@ -70,12 +70,12 @@ func HandleCommand(w http.ResponseWriter, r *http.Request) {
 	resultado := general.ExecuteCommandList(comandos)
 
 	// =========================
-	// Ejecutar comandos reales
+	// Ejecutar comandos reales y obtener logs
 	// =========================
-	resultados, contadorErrores := general.GlobalCom(resultado.Salida.LstComandos)
+	_, contadorErrores, logs := general.GlobalCom(resultado.Salida.LstComandos)
 
 	// LOG EN CONSOLA
-	for _, r := range resultados {
+	for _, r := range logs {
 		fmt.Println(r)
 	}
 
@@ -86,8 +86,8 @@ func HandleCommand(w http.ResponseWriter, r *http.Request) {
 
 	// Fallback: detectar errores por contenido
 	if !hayError {
-		for _, r := range resultados {
-			if strings.HasPrefix(strings.TrimSpace(r), "❌") {
+		for _, r := range logs {
+			if strings.HasPrefix(strings.TrimSpace(r), "❌") || strings.HasPrefix(strings.TrimSpace(r), "[ERROR]") {
 				hayError = true
 				break
 			}
@@ -97,24 +97,20 @@ func HandleCommand(w http.ResponseWriter, r *http.Request) {
 	// =========================
 	// Respuesta HTTP
 	// =========================
+	status := http.StatusOK
+	message := "Comandos ejecutados correctamente"
+
 	if hayError {
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(
-			general.ResultadoSalida(
-				"Ocurrieron errores al ejecutar los comandos",
-				true,
-				resultados,
-			),
-		)
-		return
+		status = http.StatusBadRequest
+		message = "Ocurrieron errores al ejecutar los comandos"
 	}
 
-	w.WriteHeader(http.StatusOK)
+	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(
 		general.ResultadoSalida(
-			"Comandos ejecutados correctamente",
-			false,
-			resultados,
+			message,
+			hayError,
+			logs, // Enviamos logs legibles al frontend
 		),
 	)
 }
