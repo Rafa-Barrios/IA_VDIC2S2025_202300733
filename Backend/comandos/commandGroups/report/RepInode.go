@@ -11,33 +11,28 @@ import (
 	"Proyecto/comandos/utils"
 )
 
-// RepInode genera el reporte de INODOS en HTML
+// RepInode general
 func RepInode(id string, fileName string) (string, bool) {
 
-	// 1️⃣ Obtener partición montada
 	mount := disk.GetMountedPartition(id)
 	if mount == nil {
 		return "ID de partición no encontrado", true
 	}
 
-	// 2️⃣ Abrir disco
 	file, err := os.OpenFile(mount.Path, os.O_RDWR, 0666)
 	if err != nil {
 		return "No se pudo abrir el disco", true
 	}
 	defer file.Close()
 
-	// 3️⃣ Leer SuperBloque
 	var sb structures.SuperBlock
 	if err := disk.ReadSuperBlock(file, int64(mount.Start), &sb); err != nil {
 		return "No se pudo leer el SuperBloque", true
 	}
 
-	// 4️⃣ Crear carpeta de reportes (DESCARGAS)
 	reportDir := "C:/Users/Rafael Barrios/Downloads/Rep"
 	_ = os.MkdirAll(reportDir, os.ModePerm)
 
-	// 4️⃣a Normalizar nombre
 	if !strings.HasSuffix(strings.ToLower(fileName), ".html") {
 		fileName += ".html"
 	}
@@ -50,11 +45,9 @@ func RepInode(id string, fileName string) (string, bool) {
 	}
 	defer html.Close()
 
-	// 5️⃣ HTML Inicio
 	fmt.Fprintln(html, "<html><body>")
 	fmt.Fprintln(html, "<h1>Reporte de Inodos</h1>")
 
-	// 6️⃣ Recorrer inodos
 	for i := int32(0); i < sb.S_inodes_count; i++ {
 
 		inode, err := disk.ReadInode(file, sb, i)

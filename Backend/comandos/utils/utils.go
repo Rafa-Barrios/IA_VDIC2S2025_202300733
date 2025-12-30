@@ -257,10 +257,6 @@ func TieneDiskName(diskName string) (string, bool, string) {
 		return "", true, "diskName no puede estar vacío"
 	}
 
-	if !strings.HasSuffix(strings.ToLower(diskName), ".mia") {
-		return "", true, "El disco debe tener extensión .mia"
-	}
-
 	return diskName, false, ""
 }
 

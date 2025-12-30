@@ -1,20 +1,15 @@
 package disk
 
 import (
+	"Proyecto/Estructuras/structures"
 	"fmt"
 	"os"
 	"path"
 	"strings"
 	"time"
 
-	"Proyecto/Estructuras/structures"
-
 	"github.com/fatih/color"
 )
-
-/* =========================
-   MKFILE
-========================= */
 
 func mkfileExecute(_ string, props map[string]string) (string, bool) {
 
@@ -94,7 +89,7 @@ func mkfileExecute(_ string, props map[string]string) (string, bool) {
 		I_atime: now,
 		I_ctime: now,
 		I_mtime: now,
-		I_type:  1, // ARCHIVO
+		I_type:  1,
 		I_perm:  [3]byte{6, 6, 4},
 	}
 
@@ -114,10 +109,7 @@ func mkfileExecute(_ string, props map[string]string) (string, bool) {
 	return fmt.Sprintf("✅ Archivo '%s' creado correctamente", filePath), false
 }
 
-/* =========================
-   LIMPIAR BLOQUES
-========================= */
-
+// LIMPIAR BLOQUES
 func cleanFileBlocks(file *os.File, sb structures.SuperBlock, inodeIndex int32) {
 	inode, err := ReadInode(file, sb, inodeIndex)
 	if err != nil {
@@ -134,10 +126,6 @@ func cleanFileBlocks(file *os.File, sb structures.SuperBlock, inodeIndex int32) 
 	inode.I_s = 0
 	WriteInode(file, sb, inodeIndex, inode)
 }
-
-/* =========================
-   ESCRITURA DE CONTENIDO
-========================= */
 
 func writeFileContentSafe(file *os.File, sb structures.SuperBlock, inodeIndex int32, size int32) {
 
@@ -168,7 +156,6 @@ func writeFileContentSafe(file *os.File, sb structures.SuperBlock, inodeIndex in
 
 		WriteBlock(file, sb, inode.I_block[i], &block)
 
-		// 🐞 DEBUG (puedes quitarlo luego)
 		fmt.Printf("DEBUG MKFILE: bloque=%d escritos=%d\n", inode.I_block[i], written)
 	}
 

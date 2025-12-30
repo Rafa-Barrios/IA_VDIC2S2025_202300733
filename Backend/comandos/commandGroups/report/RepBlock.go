@@ -14,30 +14,25 @@ import (
 // RepBlock genera el reporte de BLOQUES en HTML
 func RepBlock(id string, fileName string) (string, bool) {
 
-	// 1️⃣ Obtener partición montada
 	mount := disk.GetMountedPartition(id)
 	if mount == nil {
 		return "ID de partición no encontrado", true
 	}
 
-	// 2️⃣ Abrir disco
 	file, err := os.Open(mount.Path)
 	if err != nil {
 		return "No se pudo abrir el disco", true
 	}
 	defer file.Close()
 
-	// 3️⃣ Leer SuperBloque
 	var sb structures.SuperBlock
 	if err := disk.ReadSuperBlock(file, int64(mount.Start), &sb); err != nil {
 		return "No se pudo leer el SuperBloque", true
 	}
 
-	// 4️⃣ Crear carpeta de reportes
 	reportDir := "C:/Users/Rafael Barrios/Downloads/Rep"
 	_ = os.MkdirAll(reportDir, os.ModePerm)
 
-	// 4️⃣a Normalizar nombre de archivo
 	if !strings.HasSuffix(strings.ToLower(fileName), ".html") {
 		fileName += ".html"
 	}
@@ -50,11 +45,9 @@ func RepBlock(id string, fileName string) (string, bool) {
 	}
 	defer html.Close()
 
-	// 5️⃣ Inicio HTML
 	fmt.Fprintln(html, "<html><body>")
 	fmt.Fprintln(html, "<h1>Reporte de Bloques</h1>")
 
-	// 6️⃣ Recorrer inodos
 	for i := int32(0); i < sb.S_inodes_count; i++ {
 
 		inode, err := disk.ReadInode(file, sb, i)
@@ -67,16 +60,12 @@ func RepBlock(id string, fileName string) (string, bool) {
 			continue
 		}
 
-		// 7️⃣ Recorrer bloques del inodo
 		for _, blk := range inode.I_block {
 
 			if blk == -1 {
 				continue
 			}
 
-			// =========================
-			// BLOQUE DE CARPETA
-			// =========================
 			if inode.I_type == 0 {
 				var folder structures.BloqueCarpeta
 				if err := disk.ReadBlock(file, sb, blk, &folder); err != nil {
@@ -101,9 +90,6 @@ func RepBlock(id string, fileName string) (string, bool) {
 				fmt.Fprintln(html, "</table>")
 			}
 
-			// =========================
-			// BLOQUE DE ARCHIVO
-			// =========================
 			if inode.I_type == 1 {
 				var fileBlock structures.BloqueArchivo
 				if err := disk.ReadBlock(file, sb, blk, &fileBlock); err != nil {
@@ -116,9 +102,6 @@ func RepBlock(id string, fileName string) (string, bool) {
 				fmt.Fprintln(html, "</pre>")
 			}
 
-			// =========================
-			// BLOQUE DE APUNTADORES
-			// =========================
 			if inode.I_type == 2 {
 				var pointerBlock structures.BloqueApuntador
 				if err := disk.ReadBlock(file, sb, blk, &pointerBlock); err != nil {
@@ -142,7 +125,6 @@ func RepBlock(id string, fileName string) (string, bool) {
 		}
 	}
 
-	// 8️⃣ Cierre HTML
 	fmt.Fprintln(html, "</body></html>")
 
 	return "[REP BLOCK]: Reporte generado correctamente", false

@@ -11,10 +11,6 @@ import (
 	"github.com/fatih/color"
 )
 
-/* =========================
-   ESTRUCTURA EN MEMORIA
-========================= */
-
 type MountedPartition struct {
 	Id       string
 	DiskName string
@@ -25,10 +21,6 @@ type MountedPartition struct {
 }
 
 var mountedPartitions []MountedPartition
-
-/* =========================
-   UTILIDADES
-========================= */
 
 // obtiene la letra del disco a partir del nombre (VDIC-A.mia -> A)
 func obtenerLetraDisco(diskName string) byte {
@@ -42,7 +34,6 @@ func obtenerLetraDisco(diskName string) byte {
 	return 'A'
 }
 
-// genera un correlativo GLOBAL
 func obtenerCorrelativoGlobal() int32 {
 	var max int32 = 0
 	for _, part := range mountedPartitions {
@@ -58,10 +49,6 @@ func obtenerCorrelativoGlobal() int32 {
 	return max + 1
 }
 
-/* =========================
-   MOUNT
-========================= */
-
 func mountExecute(_ string, props map[string]string) (string, bool) {
 
 	diskName := strings.TrimSpace(props["diskname"])
@@ -72,7 +59,7 @@ func mountExecute(_ string, props map[string]string) (string, bool) {
 	}
 
 	if !strings.HasSuffix(strings.ToLower(diskName), ".mia") {
-		return "El disco debe tener extensión .mia", true
+		diskName += ".mia"
 	}
 
 	path := utils.DirectorioDisco + diskName
@@ -88,7 +75,6 @@ func mountExecute(_ string, props map[string]string) (string, bool) {
 		return "Error al leer el MBR", true
 	}
 
-	// Buscar partición
 	partIndex := -1
 	for i := 0; i < 4; i++ {
 		part := mbr.Mbr_partitions[i]
@@ -107,7 +93,6 @@ func mountExecute(_ string, props map[string]string) (string, bool) {
 		return fmt.Sprintf("No existe la partición '%s'", partName), true
 	}
 
-	// ❗ Verificar si ya está montada EN MEMORIA
 	for _, mp := range mountedPartitions {
 		if strings.EqualFold(mp.Path, path) &&
 			strings.EqualFold(mp.Name, partName) {
@@ -122,7 +107,6 @@ func mountExecute(_ string, props map[string]string) (string, bool) {
 	letra := obtenerLetraDisco(diskName)
 	id := fmt.Sprintf("21%d%c", correlativo, letra)
 
-	// Registrar SOLO en memoria
 	mountedPartitions = append(mountedPartitions, MountedPartition{
 		Id:       id,
 		DiskName: diskName,
@@ -141,10 +125,6 @@ func mountExecute(_ string, props map[string]string) (string, bool) {
 
 	return fmt.Sprintf("Partición montada correctamente con ID %s", id), false
 }
-
-/* =========================
-   ACCESO PARA LOGIN / MKFS
-========================= */
 
 func GetMountedPartition(id string) *MountedPartition {
 	id = strings.TrimSpace(id)

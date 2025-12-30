@@ -57,7 +57,7 @@
         }
     }
 
-    // 🔹 NUEVO: limpiar todo
+    // limpiar todo
     function clearAll() {
         inputCommands = "";
         outputCommands = "";
@@ -147,11 +147,6 @@
         color: #475569;
     }
 
-    .bottom-buttons {
-        margin-top: 25px;
-        display: flex;
-        justify-content: center;
-    }
 </style>
 
 <div class="container">
@@ -210,9 +205,5 @@
                 placeholder="Aquí se mostrará la salida del backend..."
             ></textarea>
         </div>
-    </div>
-
-    <div class="bottom-buttons">
-        <button disabled>Generar reportes</button>
     </div>
 </div>

@@ -6,7 +6,7 @@ import (
 	"github.com/fatih/color"
 )
 
-// mountedExecute muestra todas las particiones montadas REALMENTE en memoria
+// mountedExecute muestra todas las particiones montadas
 func mountedExecute(_ string, _ map[string]string) (string, bool) {
 
 	color.Green("-----------------------------------------------------------")

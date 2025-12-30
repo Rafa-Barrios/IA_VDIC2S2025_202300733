@@ -10,34 +10,29 @@ import (
 	"Proyecto/comandos/commandGroups/disk"
 )
 
-// RepBMBlock genera el reporte del bitmap de bloques en TXT
+// RepBMBlock
 func RepBMBlock(id string, fileName string) (string, bool) {
 
-	// 1️⃣ Obtener partición montada
 	mount := disk.GetMountedPartition(id)
 	if mount == nil {
 		return "ID de partición no encontrado", true
 	}
 
-	// 2️⃣ Abrir disco
 	file, err := os.Open(mount.Path)
 	if err != nil {
 		return "No se pudo abrir el disco", true
 	}
 	defer file.Close()
 
-	// 3️⃣ Leer SuperBloque
 	var sb structures.SuperBlock
 	if err := disk.ReadSuperBlock(file, int64(mount.Start), &sb); err != nil {
 		return "No se pudo leer el SuperBloque", true
 	}
 
-	// 4️⃣ Normalizar nombre del archivo (.txt)
 	if !strings.HasSuffix(strings.ToLower(fileName), ".txt") {
 		fileName += ".txt"
 	}
 
-	// 5️⃣ Ruta de salida (Downloads)
 	reportDir := "C:/Users/Rafael Barrios/Downloads/Rep"
 	_ = os.MkdirAll(reportDir, os.ModePerm)
 
@@ -49,7 +44,6 @@ func RepBMBlock(id string, fileName string) (string, bool) {
 	}
 	defer txt.Close()
 
-	// 6️⃣ Leer bitmap de bloques
 	fmt.Fprintln(txt, "# Bitmap de Bloques\n")
 
 	count := 0

@@ -10,26 +10,22 @@ import (
 	"Proyecto/comandos/utils"
 )
 
-// RepMBR genera el reporte MBR en HTML
+// RepMBR general
 func RepMBR(id string, fileName string) (string, bool) {
 
-	// 1️⃣ Obtener partición montada
 	mount := disk.GetMountedPartition(id)
 	if mount == nil {
 		return "ID de partición no encontrado", true
 	}
 
-	// 2️⃣ Leer MBR usando utils (FUNCIÓN REAL)
 	mbr, err, msg := utils.ObtenerEstructuraMBR(mount.Path)
 	if err {
 		return msg, true
 	}
 
-	// 3️⃣ Crear carpeta de reportes
 	reportDir := "C:/Users/Rafael Barrios/Downloads/Rep"
 	_ = os.MkdirAll(reportDir, os.ModePerm)
 
-	// 3️⃣a Normalizar nombre de archivo: agregar ".html" si no lo tiene
 	if !strings.HasSuffix(strings.ToLower(fileName), ".html") {
 		fileName += ".html"
 	}
@@ -42,7 +38,6 @@ func RepMBR(id string, fileName string) (string, bool) {
 	}
 	defer html.Close()
 
-	// 4️⃣ Generar HTML
 	fmt.Fprintln(html, "<html><body>")
 	fmt.Fprintln(html, "<h1>Reporte de MBR</h1>")
 
@@ -54,7 +49,6 @@ func RepMBR(id string, fileName string) (string, bool) {
 	fmt.Fprintf(html, "<tr><td>Disk Signature</td><td>%d</td></tr>", mbr.Mbr_disk_signature)
 	fmt.Fprintln(html, "</table>")
 
-	// 5️⃣ Particiones
 	fmt.Fprintln(html, "<h2>Particiones</h2>")
 	fmt.Fprintln(html, "<table border='1'>")
 	fmt.Fprintln(html,

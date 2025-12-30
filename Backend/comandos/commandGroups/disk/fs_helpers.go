@@ -9,10 +9,7 @@ import (
 	"Proyecto/Estructuras/structures"
 )
 
-/* =========================
-   SUPER BLOQUE
-========================= */
-
+// SUPER BLOQUE
 func ReadSuperBlock(file *os.File, start int64, sb *structures.SuperBlock) error {
 	if _, err := file.Seek(start, 0); err != nil {
 		return fmt.Errorf("error al posicionar el SuperBloque")
@@ -23,10 +20,7 @@ func ReadSuperBlock(file *os.File, start int64, sb *structures.SuperBlock) error
 	return nil
 }
 
-/* =========================
-   INODOS
-========================= */
-
+// INODOS
 func ReadInode(file *os.File, sb structures.SuperBlock, inodeIndex int32) (structures.Inode, error) {
 	var inode structures.Inode
 	pos := sb.S_inode_start + inodeIndex*sb.S_inode_s
@@ -52,10 +46,7 @@ func WriteInode(file *os.File, sb structures.SuperBlock, inodeIndex int32, inode
 	return nil
 }
 
-/* =========================
-   BLOQUES
-========================= */
-
+// BLOQUES
 func ReadBlock(file *os.File, sb structures.SuperBlock, blockIndex int32, out interface{}) error {
 	pos := sb.S_block_start + blockIndex*sb.S_block_s
 
@@ -80,10 +71,7 @@ func WriteBlock(file *os.File, sb structures.SuperBlock, blockIndex int32, data 
 	return nil
 }
 
-/* =========================
-   BITMAPS
-========================= */
-
+// BITMAPS
 func FindFreeInode(file *os.File, sb structures.SuperBlock) int32 {
 	for i := int32(0); i < sb.S_inodes_count; i++ {
 		pos := sb.S_bm_inode_start + i
@@ -122,10 +110,7 @@ func UnmarkBitmap(file *os.File, bmStart int32, index int32) {
 	file.Write([]byte{0})
 }
 
-/* =========================
-   DIRECTORIOS
-========================= */
-
+// DIRECTORIOS
 func findEntryInDirectory(
 	file *os.File,
 	sb structures.SuperBlock,
@@ -267,5 +252,5 @@ func addEntryToDirectory(
 		}
 	}
 
-	return fmt.Errorf("❌ Error: no hay espacio en el directorio")
+	return fmt.Errorf("Error: no hay espacio en el directorio")
 }

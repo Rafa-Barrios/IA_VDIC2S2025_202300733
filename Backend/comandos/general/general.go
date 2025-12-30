@@ -9,23 +9,14 @@ import (
 	"github.com/fatih/color"
 )
 
-/* =========================
-   RUTAS BASE DEL PROYECTO
-========================= */
-
 var NamePath = "VDIC-MIA"
 var ReportPath = "VDIC-MIA/Rep"
 var DiskPath = "VDIC-MIA/Disks"
-
-/* =========================
-   OBTENCIÓN DE PARÁMETROS
-========================= */
 
 func ObtenerParametros(x string) []string {
 
 	var comandos []string
 
-	// -param=value | -param="value" | >path=value
 	regex := regexp.MustCompile(`(-|>)(\w+)(?:="([^"]+)"|=([^"\s]+))?`)
 	matches := regex.FindAllStringSubmatch(x, -1)
 
@@ -37,22 +28,15 @@ func ObtenerParametros(x string) []string {
 		} else if m[4] != "" {
 			comandos = append(comandos, fmt.Sprintf("%s=%s", atributo, m[4]))
 		}
-		// ❌ Se eliminan parámetros bandera (-p)
-		// No se usan en este proyecto y pueden causar errores
 	}
 
 	return comandos
 }
 
-/* =========================
-   CREACIÓN DE ESTRUCTURA
-========================= */
-
 func CrearCarpeta() {
 
 	nombreArchivo := "VDIC-MIA/CarpetaImagenes.txt"
 
-	// Carpeta raíz
 	if _, err := os.Stat(NamePath); os.IsNotExist(err) {
 		if err := os.MkdirAll(NamePath, 0755); err != nil {
 			color.Red("Error al crear carpeta VDIC-MIA")
@@ -61,7 +45,6 @@ func CrearCarpeta() {
 		color.Green("Carpeta VDIC-MIA creada correctamente")
 	}
 
-	// Carpeta Rep
 	if _, err := os.Stat(ReportPath); os.IsNotExist(err) {
 		if err := os.Mkdir(ReportPath, 0755); err != nil {
 			color.Red("Error al crear carpeta Rep")
@@ -70,7 +53,6 @@ func CrearCarpeta() {
 		color.Green("Carpeta Rep creada correctamente")
 	}
 
-	// Carpeta Disks
 	if _, err := os.Stat(DiskPath); os.IsNotExist(err) {
 		if err := os.Mkdir(DiskPath, 0755); err != nil {
 			color.Red("Error al crear carpeta Disks")
@@ -79,7 +61,6 @@ func CrearCarpeta() {
 		color.Green("Carpeta Disks creada correctamente")
 	}
 
-	// Archivo informativo
 	if _, err := os.Stat(nombreArchivo); os.IsNotExist(err) {
 		archivo, err := os.Create(nombreArchivo)
 		if err != nil {
@@ -94,10 +75,6 @@ func CrearCarpeta() {
 
 	color.Green("Estructura base verificada")
 }
-
-/* =========================
-   VALIDACIÓN DE PATH
-========================= */
 
 func TienePath(x string) string {
 
@@ -118,10 +95,6 @@ func TienePath(x string) string {
 	return path
 }
 
-/* =========================
-   EXECUTE (LECTURA SCRIPT)
-========================= */
-
 func ExecuteCommandList(comandos []string) Resultado {
 
 	var lineasValidas []string
@@ -133,7 +106,6 @@ func ExecuteCommandList(comandos []string) Resultado {
 		}
 	}
 
-	// Eliminar comentarios finales
 	reg := regexp.MustCompile(`^(.*?)\s*(?:#.*)?$`)
 	var comandosFinales []string
 

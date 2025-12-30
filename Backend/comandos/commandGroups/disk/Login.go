@@ -11,10 +11,6 @@ import (
 	"github.com/fatih/color"
 )
 
-/* =========================
-   SESIÓN GLOBAL
-========================= */
-
 type Session struct {
 	User  string
 	Group string
@@ -25,12 +21,6 @@ type Session struct {
 
 var currentSession *Session = nil
 
-/*
-	=========================
-	  LOGIN
-
-=========================
-*/
 func loginExecute(_ string, props map[string]string) (string, bool) {
 
 	if currentSession != nil {
@@ -77,9 +67,7 @@ func loginExecute(_ string, props map[string]string) (string, bool) {
 		return "❌ Error al leer el inodo de users.txt", true
 	}
 
-	// =========================
-	// Leer todos los bloques asignados a users.txt
-	// =========================
+	// Leer todos los bloques
 	var content strings.Builder
 	for _, blk := range usersInode.I_block {
 		if blk == -1 {
@@ -130,10 +118,7 @@ func loginExecute(_ string, props map[string]string) (string, bool) {
 	return "❌ Error: usuario no existe", true
 }
 
-/* =========================
-   LOGOUT
-========================= */
-
+// LOGOUT
 func logoutExecute(_ string, _ map[string]string) (string, bool) {
 	if currentSession == nil {
 		return "❌ Error: no hay una sesión activa", true

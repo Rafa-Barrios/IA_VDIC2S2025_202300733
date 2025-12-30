@@ -12,8 +12,6 @@ import (
 )
 
 // P = Primario
-// E = Extendido
-// L = Logico
 func fdiskExecute(comando string, parametros map[string]string) (string, bool) {
 
 	tamanio, er, strError := utils.TieneSize(comando, parametros["size"])
@@ -51,20 +49,13 @@ func fdiskExecute(comando string, parametros map[string]string) (string, bool) {
 
 func fdiskCreate(tamanio int32, unidad byte, diskName string, tipo byte, tipoFit byte, nombreParticion string) (string, bool) {
 
-	nombreSinExtension := ""
-	extensionArchivo := ""
+	diskName = strings.TrimSpace(diskName)
 
-	if strings.Contains(diskName, ".") {
-		partes := strings.Split(diskName, ".")
-		nombreSinExtension = partes[0]
-		extensionArchivo = partes[1]
+	if !strings.HasSuffix(strings.ToLower(diskName), ".mia") {
+		diskName += ".mia"
 	}
 
-	if extensionArchivo != "mia" {
-		return "Extensión del archivo no válida", true
-	}
-
-	path := utils.DirectorioDisco + nombreSinExtension + ".mia"
+	path := utils.DirectorioDisco + diskName
 
 	switch tipo {
 	case 'P':
@@ -109,13 +100,13 @@ func particionPrimaria(ubicacionArchivo string, nombreParticion string, tipo byt
 		return "No hay espacio para más particiones primarias", true
 	}
 
-	// Validar nombre duplicado
+	// Nombre duplicado
 	nombreExistente, msg := utils.ExisteNombreParticion(ubicacionArchivo, nombreParticion)
 	if nombreExistente {
 		return msg, true
 	}
 
-	// Validar espacio
+	// Espacio
 	if !utils.ExisteEspacioDisponible(tamanioDisco, ubicacionArchivo, unidad, int32(pos)) {
 		return "Espacio insuficiente en el disco", true
 	}

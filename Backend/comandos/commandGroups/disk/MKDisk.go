@@ -12,19 +12,16 @@ import (
 
 func mkdiskExecute(comando string, parametros map[string]string) (string, bool) {
 
-	// SIZE
 	tamanio, er, msg := utils.TieneSize(comando, parametros["size"])
 	if er || tamanio <= 0 {
 		return "El parámetro -size debe ser mayor que 0", true
 	}
 
-	// UNIT
 	unidad, er, msg := utils.TieneUnit(comando, parametros["unit"])
 	if er {
 		return msg, true
 	}
 
-	// FIT
 	fit, er, msg := utils.TieneFit(comando, parametros["fit"])
 	if er {
 		return msg, true
@@ -87,7 +84,6 @@ func createDiskFile(archivo string, tamanio int32, fit byte, unidad byte) (bool,
 		estructura.Mbr_partitions[i] = utils.NuevaPartitionVacia()
 	}
 
-	// Llenar con ceros
 	buffer := make([]byte, 1024)
 	restante := tamanioDisco
 

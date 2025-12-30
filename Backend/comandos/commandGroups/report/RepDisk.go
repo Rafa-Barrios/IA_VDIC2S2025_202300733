@@ -10,26 +10,21 @@ import (
 	"Proyecto/comandos/utils"
 )
 
-// RepDISK genera el reporte DISK en HTML
 func RepDISK(id string, fileName string) (string, bool) {
 
-	// 1️⃣ Obtener partición montada
 	mount := disk.GetMountedPartition(id)
 	if mount == nil {
 		return "ID de partición no encontrado", true
 	}
 
-	// 2️⃣ Obtener MBR (FORMA REAL DEL PROYECTO)
 	mbr, err, msg := utils.ObtenerEstructuraMBR(mount.Path)
 	if err {
 		return msg, true
 	}
 
-	// 3️⃣ Crear carpeta de reportes
 	reportDir := "C:/Users/Rafael Barrios/Downloads/Rep"
 	_ = os.MkdirAll(reportDir, os.ModePerm)
 
-	// 4️⃣ Normalizar nombre
 	if !strings.HasSuffix(strings.ToLower(fileName), ".html") {
 		fileName += ".html"
 	}
@@ -42,7 +37,6 @@ func RepDISK(id string, fileName string) (string, bool) {
 	}
 	defer html.Close()
 
-	// 5️⃣ HTML base
 	fmt.Fprintln(html, "<html><body>")
 	fmt.Fprintln(html, "<h1>Reporte DISK</h1>")
 	fmt.Fprintln(html, "<div style='display:flex; width:100%; border:1px solid black;'>")
@@ -50,7 +44,6 @@ func RepDISK(id string, fileName string) (string, bool) {
 	totalDisk := float64(mbr.Mbr_tamano)
 	var usado int32 = 0
 
-	// 6️⃣ MBR (tamaño fijo aproximado)
 	mbrSize := int32(512)
 	mbrPercent := (float64(mbrSize) / totalDisk) * 100
 
@@ -60,7 +53,6 @@ func RepDISK(id string, fileName string) (string, bool) {
 
 	usado += mbrSize
 
-	// 7️⃣ Particiones primarias
 	for _, p := range mbr.Mbr_partitions {
 
 		if p.Part_start == -1 {
@@ -88,7 +80,6 @@ func RepDISK(id string, fileName string) (string, bool) {
 		usado += p.Part_s
 	}
 
-	// 8️⃣ Espacio libre final
 	if usado < mbr.Mbr_tamano {
 		libre := mbr.Mbr_tamano - usado
 		librePercent := (float64(libre) / totalDisk) * 100

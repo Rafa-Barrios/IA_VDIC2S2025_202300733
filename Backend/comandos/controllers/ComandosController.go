@@ -10,9 +10,6 @@ import (
 
 func HandleCommand(w http.ResponseWriter, r *http.Request) {
 
-	// =========================
-	// CORS - Preflight
-	// =========================
 	if r.Method == http.MethodOptions {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "POST")
@@ -21,25 +18,16 @@ func HandleCommand(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// =========================
-	// Validar método
-	// =========================
 	if r.Method != http.MethodPost {
 		http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
 		return
 	}
 
-	// =========================
-	// Headers
-	// =========================
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "POST")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 	w.Header().Set("Content-Type", "application/json")
 
-	// =========================
-	// Body esperado
-	// =========================
 	var requestBody struct {
 		Comandos *string `json:"Comandos"`
 	}
@@ -63,15 +51,9 @@ func HandleCommand(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// =========================
-	// Ejecución de comandos
-	// =========================
 	comandos := strings.Split(*requestBody.Comandos, "\n")
 	resultado := general.ExecuteCommandList(comandos)
 
-	// =========================
-	// Ejecutar comandos reales y obtener logs
-	// =========================
 	_, contadorErrores, logs := general.GlobalCom(resultado.Salida.LstComandos)
 
 	// LOG EN CONSOLA
@@ -79,12 +61,8 @@ func HandleCommand(w http.ResponseWriter, r *http.Request) {
 		fmt.Println(r)
 	}
 
-	// =========================
-	// Verificación REAL de errores
-	// =========================
 	hayError := contadorErrores > 0
 
-	// Fallback: detectar errores por contenido
 	if !hayError {
 		for _, r := range logs {
 			if strings.HasPrefix(strings.TrimSpace(r), "❌") || strings.HasPrefix(strings.TrimSpace(r), "[ERROR]") {
@@ -94,9 +72,6 @@ func HandleCommand(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// =========================
-	// Respuesta HTTP
-	// =========================
 	status := http.StatusOK
 	message := "Comandos ejecutados correctamente"
 
@@ -110,7 +85,7 @@ func HandleCommand(w http.ResponseWriter, r *http.Request) {
 		general.ResultadoSalida(
 			message,
 			hayError,
-			logs, // Enviamos logs legibles al frontend
+			logs,
 		),
 	)
 }

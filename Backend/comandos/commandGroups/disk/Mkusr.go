@@ -1,20 +1,15 @@
 package disk
 
 import (
+	"Proyecto/Estructuras/structures"
 	"encoding/binary"
 	"fmt"
 	"os"
 	"strings"
 	"time"
 
-	"Proyecto/Estructuras/structures"
-
 	"github.com/fatih/color"
 )
-
-/* =========================
-   MKUSR
-========================= */
 
 func mkusrExecute(_ string, props map[string]string) (string, bool) {
 
@@ -22,19 +17,16 @@ func mkusrExecute(_ string, props map[string]string) (string, bool) {
 	color.Blue("Administración de usuarios: mkusr")
 	color.Green("-----------------------------------------------------------")
 
-	// 1️⃣ Verificar sesión activa
 	if currentSession == nil {
 		color.Red("❌ Error: no hay una sesión activa")
 		return "❌ Error: no hay una sesión activa", true
 	}
 
-	// 2️⃣ Solo root puede crear usuarios
 	if currentSession.User != "root" {
 		color.Red("❌ Error: usuario no autorizado (%s)", currentSession.User)
 		return "❌ Error: solo el usuario root puede crear usuarios", true
 	}
 
-	// 3️⃣ Leer parámetros
 	userName := strings.TrimSpace(props["user"])
 	password := strings.TrimSpace(props["pass"])
 	groupName := strings.TrimSpace(props["grp"])
@@ -49,7 +41,6 @@ func mkusrExecute(_ string, props map[string]string) (string, bool) {
 		return "❌ Error: parámetros exceden longitud máxima de 10 caracteres", true
 	}
 
-	// 4️⃣ Obtener partición de la sesión
 	part := GetMountedPartition(currentSession.Id)
 	if part == nil {
 		color.Red("❌ Error: partición de la sesión no montada")
@@ -58,7 +49,6 @@ func mkusrExecute(_ string, props map[string]string) (string, bool) {
 
 	color.Cyan("✔ Partición activa: %s", part.Id)
 
-	// 5️⃣ Abrir disco
 	file, err := os.OpenFile(part.Path, os.O_RDWR, 0666)
 	if err != nil {
 		color.Red("❌ Error al abrir disco")
@@ -66,7 +56,6 @@ func mkusrExecute(_ string, props map[string]string) (string, bool) {
 	}
 	defer file.Close()
 
-	// 6️⃣ Leer SuperBloque
 	var sb structures.SuperBlock
 	file.Seek(int64(part.Start), 0)
 	if err := binary.Read(file, binary.LittleEndian, &sb); err != nil {
@@ -74,16 +63,14 @@ func mkusrExecute(_ string, props map[string]string) (string, bool) {
 		return "❌ Error al leer el SuperBloque", true
 	}
 
-	// 7️⃣ Leer inodo de users.txt (inodo 1)
 	var usersInode structures.Inode
-	inodePos := sb.S_inode_start + sb.S_inode_s // inodo 1
+	inodePos := sb.S_inode_start + sb.S_inode_s
 	file.Seek(int64(inodePos), 0)
 	if err := binary.Read(file, binary.LittleEndian, &usersInode); err != nil {
 		color.Red("❌ Error al leer inodo de users.txt")
 		return "❌ Error al leer el inodo de users.txt", true
 	}
 
-	// 8️⃣ Leer contenido completo de todos los bloques asignados
 	var content strings.Builder
 	for _, blk := range usersInode.I_block {
 		if blk == -1 {
@@ -98,7 +85,6 @@ func mkusrExecute(_ string, props map[string]string) (string, bool) {
 
 	lines := strings.Split(strings.TrimSpace(content.String()), "\n")
 
-	// 9️⃣ Verificar existencia de grupo y duplicados de usuario
 	maxID := 0
 	groupExists := false
 	for _, line := range lines {
@@ -133,12 +119,10 @@ func mkusrExecute(_ string, props map[string]string) (string, bool) {
 		return "❌ Error: el grupo indicado no existe", true
 	}
 
-	// 10️⃣ Crear nueva línea de usuario
 	newID := maxID + 1
 	newLine := fmt.Sprintf("%d,U,%s,%s,%s\n", newID, groupName, userName, password)
 	newContent := content.String() + newLine
 
-	// 11️⃣ Calcular bloques necesarios y asignar si faltan
 	blockSize := int(sb.S_block_s)
 	requiredBlocks := (len(newContent) + blockSize - 1) / blockSize
 
@@ -166,7 +150,6 @@ func mkusrExecute(_ string, props map[string]string) (string, bool) {
 		}
 	}
 
-	// 12️⃣ Escribir contenido en bloques asignados
 	offset := 0
 	for _, blk := range usersInode.I_block {
 		if blk == -1 {
@@ -191,7 +174,6 @@ func mkusrExecute(_ string, props map[string]string) (string, bool) {
 		}
 	}
 
-	// 13️⃣ Actualizar tamaño y tiempo del inodo
 	usersInode.I_s = int32(len(newContent))
 	usersInode.I_mtime = int32(time.Now().Unix())
 	file.Seek(int64(inodePos), 0)

@@ -9,35 +9,24 @@ import (
 	"Proyecto/Estructuras/structures"
 )
 
-/* =========================
-   COMANDO MKFS
-========================= */
-
 type MKFS struct {
 	Id   string
 	Type string
 }
 
-/* =========================
-   EJECUCIÓN PRINCIPAL
-========================= */
-
 func (mkfs *MKFS) Execute() {
 
-	// 1️⃣ Validar tipo (solo EXT2)
 	if mkfs.Type != "" && mkfs.Type != "full" && mkfs.Type != "fast" {
 		fmt.Println("❌ Error: tipo de formato no válido")
 		return
 	}
 
-	// 2️⃣ Verificar ID montado
 	part := GetMountedPartition(mkfs.Id)
 	if part == nil {
 		fmt.Println("❌ Error: No existe una partición montada con ese ID")
 		return
 	}
 
-	// 3️⃣ Abrir disco
 	file, err := os.OpenFile(part.Path, os.O_RDWR, 0666)
 	if err != nil {
 		fmt.Println("❌ Error al abrir el disco")
@@ -45,12 +34,10 @@ func (mkfs *MKFS) Execute() {
 	}
 	defer file.Close()
 
-	// 4️⃣ Limpiar área de la partición (FULL FORMAT)
 	file.Seek(int64(part.Start), 0)
 	zero := make([]byte, part.Size)
 	file.Write(zero)
 
-	// 5️⃣ Calcular estructuras EXT2
 	size := part.Size
 	sbSize := int32(binary.Size(structures.SuperBlock{}))
 	inodeSize := int32(binary.Size(structures.Inode{}))
@@ -78,32 +65,24 @@ func (mkfs *MKFS) Execute() {
 		S_first_blo:         2,
 	}
 
-	// 6️⃣ Posiciones físicas
 	sb.S_bm_inode_start = part.Start + sbSize
 	sb.S_bm_block_start = sb.S_bm_inode_start + n
 	sb.S_inode_start = sb.S_bm_block_start + (n * 3)
 	sb.S_block_start = sb.S_inode_start + (n * inodeSize)
 
-	// 7️⃣ Escribir SuperBloque
 	file.Seek(int64(part.Start), 0)
 	if err := binary.Write(file, binary.LittleEndian, &sb); err != nil {
 		fmt.Println("❌ Error al escribir el SuperBloque")
 		return
 	}
 
-	// 8️⃣ Inicializar Bitmaps
 	initBitmap(file, sb.S_bm_inode_start, n)
 	initBitmap(file, sb.S_bm_block_start, n*3)
 
-	// 9️⃣ Crear raíz y users.txt con bloques asignados y bitmaps marcados
 	createRootAndUsers(file, sb)
 
 	fmt.Println("✅ MKFS realizado correctamente en EXT2")
 }
-
-/* =========================
-   FUNCIONES AUXILIARES
-========================= */
 
 func initBitmap(file *os.File, start int32, size int32) {
 	file.Seek(int64(start), 0)
@@ -135,7 +114,7 @@ func createRootAndUsers(file *os.File, sb structures.SuperBlock) {
 	for i := 0; i < 15; i++ {
 		root.I_block[i] = -1
 	}
-	root.I_block[0] = 0 // primer bloque para root
+	root.I_block[0] = 0
 
 	// ---- INODO users.txt ----
 	users := root
@@ -170,8 +149,8 @@ func createRootAndUsers(file *os.File, sb structures.SuperBlock) {
 	binary.Write(file, binary.LittleEndian, &fileBlock)
 
 	// ---- BITMAPS ----
-	markBitmap(file, sb.S_bm_inode_start, 0) // root
-	markBitmap(file, sb.S_bm_inode_start, 1) // users.txt
-	markBitmap(file, sb.S_bm_block_start, 0) // root
-	markBitmap(file, sb.S_bm_block_start, 1) // users.txt
+	markBitmap(file, sb.S_bm_inode_start, 0)
+	markBitmap(file, sb.S_bm_inode_start, 1)
+	markBitmap(file, sb.S_bm_block_start, 0)
+	markBitmap(file, sb.S_bm_block_start, 1)
 }

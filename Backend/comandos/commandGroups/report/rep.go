@@ -10,9 +10,6 @@ type Result struct {
 // Rep es el punto de entrada para el comando REP
 func Rep(params map[string]string) Result {
 
-	// =========================
-	// Validación de parámetros
-	// =========================
 	id, okID := params["id"]
 	name, okName := params["name"]
 	nameReport, okFile := params["namereport"]
@@ -28,9 +25,6 @@ func Rep(params map[string]string) Result {
 	name = strings.Trim(name, " \n\r\t")
 	name = strings.Split(name, " ")[0]
 
-	// =========================
-	// Enrutamiento de reportes
-	// =========================
 	switch name {
 
 	case "mbr":

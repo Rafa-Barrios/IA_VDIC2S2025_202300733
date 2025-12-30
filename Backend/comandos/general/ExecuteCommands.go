@@ -18,7 +18,6 @@ var commandGroups = map[string][]string{
 	"groups":  {"mkgrp", "mkusr"},
 }
 
-// Detecta el grupo y el comando exacto
 func detectGroup(cmd string) (string, string, bool, string) {
 
 	cmd = strings.TrimSpace(cmd)
@@ -38,7 +37,6 @@ func detectGroup(cmd string) (string, string, bool, string) {
 	return "", "", true, "Comando no reconocido"
 }
 
-// Convierte lista de parámetros ["id=1", "name=mbr"] a map[string]string
 func parametrosToMap(params []string) map[string]string {
 	m := make(map[string]string)
 	for _, p := range params {
@@ -52,15 +50,10 @@ func parametrosToMap(params []string) map[string]string {
 	return m
 }
 
-// ======================================================
-// EJECUTA COMANDOS
-// - Consola: mensajes técnicos
-// - Frontend: SOLO mensajes finales claros
-// ======================================================
 func GlobalCom(lista []string) ([]string, int, []string) {
 
 	var errores []string
-	var frontendLogs []string // 🔥 SOLO lo que verá el frontend
+	var frontendLogs []string
 	contErrores := 0
 
 	for _, comm := range lista {
@@ -85,9 +78,6 @@ func GlobalCom(lista []string) ([]string, int, []string) {
 
 		switch group {
 
-		// =========================
-		// DISK
-		// =========================
 		case "disk":
 			color.Cyan("Administración de discos: %s", command)
 
@@ -101,12 +91,9 @@ func GlobalCom(lista []string) ([]string, int, []string) {
 				contErrores++
 			} else if msg != "" {
 				color.Cyan(msg)
-				frontendLogs = append(frontendLogs, msg) // ✅ SOLO mensaje final
+				frontendLogs = append(frontendLogs, msg)
 			}
 
-		// =========================
-		// GROUPS
-		// =========================
 		case "groups":
 			color.White("Administración de grupos: %s", command)
 
@@ -122,9 +109,6 @@ func GlobalCom(lista []string) ([]string, int, []string) {
 				frontendLogs = append(frontendLogs, msg)
 			}
 
-		// =========================
-		// USERS
-		// =========================
 		case "users":
 			color.Yellow("Administración de usuarios: %s", command)
 
@@ -140,9 +124,6 @@ func GlobalCom(lista []string) ([]string, int, []string) {
 				frontendLogs = append(frontendLogs, msg)
 			}
 
-		// =========================
-		// FILES
-		// =========================
 		case "files":
 			color.Green("Administración de archivos: %s", command)
 
@@ -158,9 +139,6 @@ func GlobalCom(lista []string) ([]string, int, []string) {
 				frontendLogs = append(frontendLogs, msg)
 			}
 
-		// =========================
-		// CAT
-		// =========================
 		case "cat":
 			color.Blue("Comando CAT: %s", command)
 
@@ -176,13 +154,9 @@ func GlobalCom(lista []string) ([]string, int, []string) {
 				frontendLogs = append(frontendLogs, msg)
 			}
 
-		// =========================
-		// REPORTS (si luego devuelve msg)
-		// =========================
 		case "reports":
 			color.Magenta("Administración de reportes: %s", command)
 
-			// ✅ Convertir parámetros a map[string]string
 			paramsMap := parametrosToMap(parametros)
 
 			result := report.Rep(paramsMap)
