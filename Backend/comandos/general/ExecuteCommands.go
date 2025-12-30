@@ -2,6 +2,8 @@ package general
 
 import (
 	"Proyecto/comandos/commandGroups/disk"
+	"Proyecto/comandos/commandGroups/report"
+
 	"strings"
 
 	"github.com/fatih/color"
@@ -34,6 +36,20 @@ func detectGroup(cmd string) (string, string, bool, string) {
 	}
 
 	return "", "", true, "Comando no reconocido"
+}
+
+// Convierte lista de parámetros ["id=1", "name=mbr"] a map[string]string
+func parametrosToMap(params []string) map[string]string {
+	m := make(map[string]string)
+	for _, p := range params {
+		partes := strings.SplitN(p, "=", 2)
+		if len(partes) == 2 {
+			clave := strings.ToLower(partes[0])
+			valor := partes[1]
+			m[clave] = valor
+		}
+	}
+	return m
 }
 
 // ======================================================
@@ -165,6 +181,22 @@ func GlobalCom(lista []string) ([]string, int, []string) {
 		// =========================
 		case "reports":
 			color.Magenta("Administración de reportes: %s", command)
+
+			// ✅ Convertir parámetros a map[string]string
+			paramsMap := parametrosToMap(parametros)
+
+			result := report.Rep(paramsMap)
+
+			if result.Error {
+				msgError := "[ERROR] " + result.Mensaje
+				color.Red(msgError)
+
+				errores = append(errores, result.Mensaje)
+				frontendLogs = append(frontendLogs, msgError)
+				contErrores++
+			} else {
+				frontendLogs = append(frontendLogs, result.Mensaje)
+			}
 		}
 	}
 
