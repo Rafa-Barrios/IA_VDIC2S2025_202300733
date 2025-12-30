@@ -24,7 +24,9 @@ func Rep(params map[string]string) Result {
 		}
 	}
 
-	name = strings.ToLower(strings.TrimSpace(name))
+	name = strings.ToLower(name)
+	name = strings.Trim(name, " \n\r\t")
+	name = strings.Split(name, " ")[0]
 
 	// =========================
 	// Enrutamiento de reportes
@@ -33,6 +35,48 @@ func Rep(params map[string]string) Result {
 
 	case "mbr":
 		msg, err := RepMBR(id, nameReport)
+		return Result{
+			Mensaje: msg,
+			Error:   err,
+		}
+
+	case "disk":
+		msg, err := RepDISK(id, nameReport)
+		return Result{
+			Mensaje: msg,
+			Error:   err,
+		}
+
+	case "inode":
+		msg, err := RepInode(id, nameReport)
+		return Result{
+			Mensaje: msg,
+			Error:   err,
+		}
+
+	case "block":
+		msg, err := RepBlock(id, nameReport)
+		return Result{
+			Mensaje: msg,
+			Error:   err,
+		}
+
+	case "bm_inode":
+		msg, err := RepBMInode(id, nameReport)
+		return Result{
+			Mensaje: msg,
+			Error:   err,
+		}
+
+	case "bm_bloc":
+		msg, err := RepBMBlock(id, nameReport)
+		return Result{
+			Mensaje: msg,
+			Error:   err,
+		}
+
+	case "sb":
+		msg, err := RepSB(id, nameReport)
 		return Result{
 			Mensaje: msg,
 			Error:   err,
